@@ -1,0 +1,343 @@
+= PXH - presentation exchange over http
+
+
+:toc:
+:toc-placement: macro
+:toclevels: 3
+:sectanchors:
+:numbered:
+:sectnums:
+:icons: font
+:imagesdir: images
+
+toc::[]
+
+== Motivation ==
+
+- provides an easy path for OIDC - Relying Parties / Web Services to enable resource access for (wallet-)holders based on verifiable credentials and verifiable presentations
+
+- DIDcomm is a great protocol, but brings some implementation complexity for classical relying parties
+
+- for many use cases (e.g. login to a web portal) a simpler, developer friendly approach is desirable
+
+- usable with mobile wallets (not only), 'always on' connectivity assumed, no persistent connection needed (session based approach)
+
+- inspired by OIDC/SIOPv2 (and Aries protocols) but not compatible
+
+
+== Overview ==
+
+image:PXoverHTTP.svg[]
+
+== Example Flow for Accessing a Resource
+
+[plantuml]
+----
+@startuml
+'https://plantuml.com/sequence-diagram
+
+skinparam BoxPadding 10
+
+participant "User Wallet" as User
+participant "Holder(PXH)" as HolderAgent
+participant UserAgent
+participant "Verifier(PXH)" as VerifierAgent
+participant "Web Service" as webservice
+
+
+UserAgent -> webservice : access resource
+
+== Web Service invites Holder ==
+
+webservice  -> VerifierAgent : create-invitation
+webservice  -> webservice    : bind ""invitation_msg_id""\nto session
+webservice --> UserAgent     : Login page with invitation app/universal link and qr code
+UserAgent   -> webservice    : Polling
+
+alt co-located wallet - user clicks app/universal link
+    UserAgent -> User : Invitation
+else cross-device - user scans qr code
+    User -> UserAgent : Scans invitation qr code : Invitation
+end
+
+User           -> HolderAgent   : receive-invitation
+HolderAgent    -> VerifierAgent : POST\nhttps://pxh.me\n(body: {"invitation_msg_id": <invitationMsgId>}
+VerifierAgent ->> webservice    : Event(Connection)
+webservice     -> webservice    : bind ""connection_id""\nto session
+
+== Web Service prepares Presentation Definition & triggers creation of Authentication Request ==
+
+webservice    -> webservice    : build Presentation\nDefinition
+webservice    -> VerifierAgent : /present-proof-2.0/send-request
+VerifierAgent -> VerifierAgent : build Auth Request
+
+== Holder receives Authentication Request and creates Verifiable Presentation with W3C credentials ==
+
+VerifierAgent ->> webservice    : Event(present_proof_v2_0)
+HolderAgent   <-- VerifierAgent : 200 OK(body: <Auth Request>)
+HolderAgent   ->> User          : Event(present_proof_v2_0)
+User           -> User          : request confirmation
+User           -> HolderAgent   : credentialsW3cPost : credentials
+User           -> User          : create presentationSpec
+User           -> HolderAgent   : /present-proof-2.0/...\n/send-presentation(presentationSpec)
+note left of VerifierAgent : session information is conveyed via ""session"" parameter.
+
+HolderAgent   ->  VerifierAgent : POST https://webservice.com/pxh(body: <JWT_VP>)
+HolderAgent   <-- VerifierAgent : 200 OK
+VerifierAgent ->> webservice    : Event(present_proof_v2_0)
+
+== Web Service verifies authentication ==
+
+webservice     -> VerifierAgent : /present-proof-2.0/.../verify-presentation
+VerifierAgent  -> VerifierAgent : check JWT\nsignature
+VerifierAgent  -> VerifierAgent : verify credentials
+webservice    <-- VerifierAgent : verification OK
+UserAgent     <-- webservice    : grant access
+
+@enduml
+----
+
+== Messages
+
+=== Invitation (connection establishment)
+
+To initiate the communication between holder and verifier, an out-of-band invitation as described in <<RFC0434,Aries RFC 0434>> is generated. A notable difference to the original RFC is the lack of any DIDs, verkeys or other DIDComm-related data in the resulting invitation message. Instead, a https://www.w3.org/TR/did-core/#services[service object] is used to advertise the verifier's HTTP endpoint to the holder.
+
+.Invitation Message
+[source,json]
+----
+{
+  "@type": "https: //didcomm.org/out-of-band/1.0/invitation",
+  "@id": "742a67c7-ba83-4914-90ff-e497685cf4b8",
+  "label": "Relying Party Verifier",
+  "goal_code": "request-proof",
+  "goal": "To request a citizenship credential for identity proving",
+  "handshake_protocols": [
+    "px-over-http/0.1"
+  ],
+  "services": [
+    {
+      "id": "https://pxh.me",
+      "type": "px-over-http",
+      "serviceEndpoint": "https://webservice.com/pxh"
+    }
+  ]
+}
+----
+
+[NOTE]
+goal and goal code are defined by rfc0434 but not supported by acapy (yet)
+
+To construct the invitation URL, the invitation message is minified, Base64-encoded and appended as a query parameter to a URL that points to the verifier.
+
+.Invitation URL
+....
+https://pxh.me?oob=eyJAdHlwZSI6ICJodHRwczogLy9kaWRjb21tLm9yZy9vdXQtb2YtYmFuZC8xLjAvaW52aXRhdGlvbiIsICJAaWQiOiAiNzQyYTY3YzctYmE4My00OTE0LTkwZmYtZTQ5NzY4NWNmNGI4IiwgImxhYmVsIjogIlJlbHlpbmcgUGFydHkgVmVyaWZpZXIiLCAiZ29hbF9jb2RlIjogInJlcXVlc3QtcHJvb2YiLCAiZ29hbCI6ICJUbyByZXF1ZXN0IGEgY2l0aXplbnNoaXAgY3JlZGVudGlhbCBmb3IgaWRlbnRpdHkgcHJvb2ZpbmciLCAiaGFuZHNoYWtlX3Byb3RvY29scyI6IFsiaHR0cHM6IC8vb3BlbmlkLm5ldC9zaW9wY29tbS8wLjEiXSwgInNlcnZpY2VzIjogW3siaWQiOiAiaHR0cHM6IC8vcmVseWluZ1BhcnR5LmNvbS9vaWRjIiwgInR5cGUiOiAic2lvcC1jb21tdW5pY2F0aW9uIiwgInNlcnZpY2VFbmRwb2ludCI6ICJodHRwczogLy9yZWx5aW5nUGFydHkuY29tL29pZGMifV19
+....
+
+=== Authentication Request with presentation definition
+
+The following authentication request requests selected claims from the citizenship credential.
+The holder is defined by the id of credentialSubject.
+The holder must prove the control of the private key belonging to the holder did when presenting the proof to the verifier.
+
+[source,json]
+----
+{
+  "presentation_definition": {
+    "format": {
+      "ldp_vc": {
+        "proof_type": [
+          "Ed25519Signature2018",
+          "BbsBlsSignature2020"
+        ]
+      },
+      "jwt_vp": {
+        "alg": [
+          "EdDSA"
+        ]
+      }
+    },
+    "input_descriptors": [
+      {
+        "schema": [
+          {
+            "uri": "https://www.w3.org/2018/credentials#VerifiableCredential"
+          },
+          {
+            "uri": "https://w3id.org/citizenship#PermanentResidentCard",
+            "required": true
+          }
+        ],
+        "name": "Permanent Resident Card",
+        "id": "citizenship",
+        "constraints": {
+          "limit_disclosure": "required",
+          "fields": [
+            {
+              "path": [
+                "$.credentialSubject.id"
+              ],
+              "id": "ea9da655-3c0c-4015-99b0-3108d24675ba"
+            },
+            {
+              "path": [
+                "$.credentialSubject.givenName"
+              ]
+            },
+            {
+              "path": [
+                "$.credentialSubject.familyName"
+              ]
+            },
+            {
+              "path": [
+                "$.credentialSubject.birthDate"
+              ]
+            }
+          ],
+          "is_holder": [
+            {
+              "field_id": [
+                "ea9da655-3c0c-4015-99b0-3108d24675ba"
+              ],
+              "directive": "required"
+            }
+          ]
+        }
+      }
+    ],
+    "id": "6728ee4f-ba17-4a02-8989-ed48eb51d73f"
+  },
+  "session": "66ff8c76-a77c-4658-b6ae-d6eb2581d318",
+  "nonce": "d4b95f1f-5d69-4349-87f4-c7551441954c"
+}
+----
+
+=== Authentication Response with vp-Token
+
+[source,json]
+----
+{
+   "vp_token": "eyJhbGciOiAiRWREU0EiLCAia2lkIjogImRpZDprZXk6ejZNa2pVRWhHOUhtZmlieXVqUk1SWHdNTnFuN2hkN3pZdGlzeDhEMTJzVks1ZHRzIiwgInR5cCI6ICJKV1QifQ.eyJpc3MiOiAiZGlkOmtleTp6Nk1ralVFaEc5SG1maWJ5dWpSTVJYd01OcW43aGQ3ell0aXN4OEQxMnNWSzVkdHMiLCAic3ViIjogImRpZDprZXk6ejZNa2pVRWhHOUhtZmlieXVqUk1SWHdNTnFuN2hkN3pZdGlzeDhEMTJzVks1ZHRzIiwgIm5iZiI6IDE2NDk3NTA0MjQsICJpYXQiOiAxNjQ5NzUwNDI0LCAiZXhwIjogMTY0OTc4NjQyNCwgImF1ZCI6ICJodHRwczovL3JlbHlpbmdQYXJ0eS5jb20vb2lkYyIsICJub25jZSI6ICJkNGI5NWYxZi01ZDY5LTQzNDktODdmNC1jNzU1MTQ0MTk1NGMiLCAidnAiOiB7IkBjb250ZXh0IjogWyJodHRwczovL3d3dy53My5vcmcvMjAxOC9jcmVkZW50aWFscy92MSIsICJodHRwczovL3czaWQub3JnL3NlY3VyaXR5L2Jicy92MSJdLCAidHlwZSI6IFsiVmVyaWZpYWJsZVByZXNlbnRhdGlvbiJdLCAidmVyaWZpYWJsZUNyZWRlbnRpYWwiOiBbeyJAY29udGV4dCI6IFsiaHR0cHM6Ly93d3cudzMub3JnLzIwMTgvY3JlZGVudGlhbHMvdjEiLCAiaHR0cHM6Ly93M2lkLm9yZy9jaXRpemVuc2hpcC92MSIsICJodHRwczovL3czaWQub3JnL3NlY3VyaXR5L2Jicy92MSJdLCAiaWQiOiAidXJuOmJuaWQ6XzpjMTRuMCIsICJ0eXBlIjogWyJQZXJtYW5lbnRSZXNpZGVudENhcmQiLCAiVmVyaWZpYWJsZUNyZWRlbnRpYWwiXSwgImNyZWRlbnRpYWxTdWJqZWN0IjogeyJpZCI6ICJkaWQ6a2V5Ono2TWtqVUVoRzlIbWZpYnl1alJNUlh3TU5xbjdoZDd6WXRpc3g4RDEyc1ZLNWR0cyIsICJ0eXBlIjogWyJQZXJzb24iLCAiUGVybWFuZW50UmVzaWRlbnQiXSwgImJpcnRoRGF0ZSI6ICIxOTU4LTA3LTE3IiwgImZhbWlseU5hbWUiOiAiTXVzdGVybWFubiIsICJnaXZlbk5hbWUiOiAiTWFyaW9uIn0sICJpc3N1YW5jZURhdGUiOiAiMjAyMi0wNC0xMlQwNzo1ODoyNi40Mzk0ODc5MDBaIiwgImlzc3VlciI6ICJkaWQ6a2V5OnpVQzcxemg3ODRQb3NGQkZmRHdoYkxZU1ZHY1I2NHRXNnpuM2RZd0FGd2JqZkV0Yjd0aE5vR1BFdDcxcVFIUTlQWFRRYkRRZnNhYlFYRXY0TllrMlRCeWo2MzczQ2dYUUtRNzJpdXFZWW5UaFpQMmcxWnhVRDNSVFFMckd0ZzludFJISlNVYyIsICJwcm9vZiI6IHsidHlwZSI6ICJCYnNCbHNTaWduYXR1cmVQcm9vZjIwMjAiLCAibm9uY2UiOiAiM0FSR2k4bEF0TXdaREpNcVpXdUxkTHZhWGVXNHNCaDM5VGtJSjBvdkFSUUdvd01uNFhadmR1UTZ1OEVPQWRqNHJLOD0iLCAicHJvb2ZWYWx1ZSI6ICJBQlFQZzcrdXgxbGN2TXhmMmZ6MXhXV21kdUxHSlA0V0gxSkFOUUpZSW9BeXpQcEVaYlh0VkgwSFhDQ28wZ3lKZXdzd2RoS29MYzNCd0R6K1pPemFaZmY1RGFlNkZCRDl4VGgxaVRrdVhUdEIrTkkrZ051bU5XWitJemtXbHBWYy9uQUcyRGFsNjNaV05uNGhwY2gxT0ZyejBSUWp0blZrQitWTXUzcFhLN2pFRWxrcVlzODJrVVNHVm9icU5yWDdDNFllSVF3QUFBQjB0S0F1bzdOdHZBSjlsOC96Z25YZURYOTBaeXVmV1piMEQ4RGhQRk1Ma2kyRFVPczdFeUNxcklOcVVPb0VuVk4wQUFBQUFtVUFQTmZza3h2bjhxbjlyYnZkUVBlc2lNRHRBT1JvOEFBbGM5ZXlGd29KTk1xZUhRNSs1OXRyblo0b1hSakxmZE1MZUxCdHNXODA4djgwemsxV3l2R0tMcHJ0OGNoanIwT2dMOTBlVFlSSm91NldXN2ZRa1doOGRXT2xqNkZsNHNnc1BiTm1RU0NJUW14WHJsd05lOFFBQUFBSWFkTVZsMWs1eG1yemtZbjBoWEhxWFpmcVVrWVJaTXVQcVdCQnBrS2hZTGxYYW83azZEYkk5K2JTZkhya3NTMkVKeUNhejhSV2VWb1lmcnB0QTB1eWdtTlJsMmFvbUVlRXRyWGlZamk4bUFqcDc0M0R3YS9MWjBTeVBXTXAxczhrRFMrWlpYNVJreW5BQWd0Y1dBekprOFlXbXdzNHRFRStLTEwwRXdJWUpvVlZhTG5Ob29BTGZPczNmbjJpbi94N0pSR2owUzlYUWxlbnJieDV5OUZSY2hyQXIxTEJ3K2I3ZTFjdjdLdDAvRGtMVlFsVGZoS2V1OHc5dzhtWGZjR0dHeElQYkFaRUJvR3JmYlFNQk9XaVFmKzdsZXYwTmxBYTFCQkVpcTc5UmtJb2tvVi8xVjZnKzhFMmorS3RwckNlYnZZMlpuY3gzbnJUZXJVRGFNZ1VPZz09IiwgInZlcmlmaWNhdGlvbk1ldGhvZCI6ICJkaWQ6a2V5OnpVQzcxemg3ODRQb3NGQkZmRHdoYkxZU1ZHY1I2NHRXNnpuM2RZd0FGd2JqZkV0Yjd0aE5vR1BFdDcxcVFIUTlQWFRRYkRRZnNhYlFYRXY0TllrMlRCeWo2MzczQ2dYUUtRNzJpdXFZWW5UaFpQMmcxWnhVRDNSVFFMckd0ZzludFJISlNVYyN6VUM3MXpoNzg0UG9zRkJGZkR3aGJMWVNWR2NSNjR0VzZ6bjNkWXdBRndiamZFdGI3dGhOb0dQRXQ3MXFRSFE5UFhUUWJEUWZzYWJRWEV2NE5ZazJUQnlqNjM3M0NnWFFLUTcyaXVxWVluVGhaUDJnMVp4VUQzUlRRTHJHdGc5bnRSSEpTVWMiLCAicHJvb2ZQdXJwb3NlIjogImFzc2VydGlvbk1ldGhvZCIsICJjcmVhdGVkIjogIjIwMjItMDQtMTJUMDc6NTg6MjguNDEzODgzKzAwOjAwIn19XSwgInByZXNlbnRhdGlvbl9zdWJtaXNzaW9uIjogeyJpZCI6ICJmNGJkMGZhYi1hYTVjLTQ1OTgtYTA2Zi1hZjAwODJjMjQ5YzYiLCAiZGVmaW5pdGlvbl9pZCI6ICI2NzI4ZWU0Zi1iYTE3LTRhMDItODk4OS1lZDQ4ZWI1MWQ3M2YiLCAiZGVzY3JpcHRvcl9tYXAiOiBbeyJpZCI6ICJjaXRpemVuc2hpcCIsICJmb3JtYXQiOiAibGRwX3ZjIiwgInBhdGgiOiAiJC52ZXJpZmlhYmxlQ3JlZGVudGlhbFswXSJ9XX19fQ.-cmjlY6NNhcNOyIToe9W1Jao_cGOjqYi-h4uMzNjsd3VtnHXSUFJkiGkOYqSV9CBgcMBy9fXP3JSraxnyialDw",
+   "session": "66ff8c76-a77c-4658-b6ae-d6eb2581d318"
+}
+----
+
+=== jwt_vp
+
+If JWS (Auth proof) of the jwt_vp refers to the holder of the verifiable credentials the proof property of the verifiable presentation can be omitted.
+An additional proof property may be included to represent a more complex proof (e.g. multi-proofs or proofs not based on digital signatures).
+
+.header:
+[source,json]
+----
+{
+  "alg": "EdDSA",
+  "kid": "did:key:z6MkjUEhG9HmfibyujRMRXwMNqn7hd7zYtisx8D12sVK5dts",
+  "typ": "JWT"
+}
+----
+
+.payload:
+[source,json]
+----
+{
+  "iss": "did:key:z6MkjUEhG9HmfibyujRMRXwMNqn7hd7zYtisx8D12sVK5dts",
+  "sub": "did:key:z6MkjUEhG9HmfibyujRMRXwMNqn7hd7zYtisx8D12sVK5dts",
+  "nbf": 1649750424,
+  "iat": 1649750424,
+  "exp": 1649786424,
+  "aud": "https://webservice.com/pxh",
+  "nonce": "d4b95f1f-5d69-4349-87f4-c7551441954c",
+  "vp": {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://w3id.org/security/bbs/v1"
+    ],
+    "type": [
+      "VerifiablePresentation"
+    ],
+    "verifiableCredential": [
+      {
+        "@context": [
+          "https://www.w3.org/2018/credentials/v1",
+          "https://w3id.org/citizenship/v1",
+          "https://w3id.org/security/bbs/v1"
+        ],
+        "id": "urn:bnid:_:c14n0",
+        "type": [
+          "PermanentResidentCard",
+          "VerifiableCredential"
+        ],
+        "credentialSubject": {
+          "id": "did:key:z6MkjUEhG9HmfibyujRMRXwMNqn7hd7zYtisx8D12sVK5dts",
+          "type": [
+            "Person",
+            "PermanentResident"
+          ],
+          "birthDate": "1958-07-17",
+          "familyName": "Mustermann",
+          "givenName": "Marion"
+        },
+        "issuanceDate": "2022-04-12T07:58:26.439487900Z",
+        "issuer": "did:key:zUC71zh784PosFBFfDwhbLYSVGcR64tW6zn3dYwAFwbjfEtb7thNoGPEt71qQHQ9PXTQbDQfsabQXEv4NYk2TByj6373CgXQKQ72iuqYYnThZP2g1ZxUD3RTQLrGtg9ntRHJSUc",
+        "proof": {
+          "type": "BbsBlsSignatureProof2020",
+          "nonce": "3ARGi8lAtMwZDJMqZWuLdLvaXeW4sBh39TkIJ0ovARQGowMn4XZvduQ6u8EOAdj4rK8=",
+          "proofValue": "ABQPg7+ux1lcvMxf2fz1xWWmduLGJP4WH1JANQJYIoAyzPpEZbXtVH0HXCCo0gyJewswdhKoLc3BwDz+ZOzaZff5Dae6FBD9xTh1iTkuXTtB+NI+gNumNWZ+IzkWlpVc/nAG2Dal63ZWNn4hpch1OFrz0RQjtnVkB+VMu3pXK7jEElkqYs82kUSGVobqNrX7C4YeIQwAAAB0tKAuo7NtvAJ9l8/zgnXeDX90ZyufWZb0D8DhPFMLki2DUOs7EyCqrINqUOoEnVN0AAAAAmUAPNfskxvn8qn9rbvdQPesiMDtAORo8AAlc9eyFwoJNMqeHQ5+59trnZ4oXRjLfdMLeLBtsW808v80zk1WyvGKLprt8chjr0OgL90eTYRJou6WW7fQkWh8dWOlj6Fl4sgsPbNmQSCIQmxXrlwNe8QAAAAIadMVl1k5xmrzkYn0hXHqXZfqUkYRZMuPqWBBpkKhYLlXao7k6DbI9+bSfHrksS2EJyCaz8RWeVoYfrptA0uygmNRl2aomEeEtrXiYji8mAjp743Dwa/LZ0SyPWMp1s8kDS+ZZX5RkynAAgtcWAzJk8YWmws4tEE+KLL0EwIYJoVVaLnNooALfOs3fn2in/x7JRGj0S9XQlenrbx5y9FRchrAr1LBw+b7e1cv7Kt0/DkLVQlTfhKeu8w9w8mXfcGGGxIPbAZEBoGrfbQMBOWiQf+7lev0NlAa1BBEiq79RkIokoV/1V6g+8E2j+KtprCebvY2Zncx3nrTerUDaMgUOg==",
+          "verificationMethod": "did:key:zUC71zh784PosFBFfDwhbLYSVGcR64tW6zn3dYwAFwbjfEtb7thNoGPEt71qQHQ9PXTQbDQfsabQXEv4NYk2TByj6373CgXQKQ72iuqYYnThZP2g1ZxUD3RTQLrGtg9ntRHJSUc#zUC71zh784PosFBFfDwhbLYSVGcR64tW6zn3dYwAFwbjfEtb7thNoGPEt71qQHQ9PXTQbDQfsabQXEv4NYk2TByj6373CgXQKQ72iuqYYnThZP2g1ZxUD3RTQLrGtg9ntRHJSUc",
+          "proofPurpose": "assertionMethod",
+          "created": "2022-04-12T07:58:28.413883+00:00"
+        }
+      }
+    ],
+    "presentation_submission": {
+      "id": "f4bd0fab-aa5c-4598-a06f-af0082c249c6",
+      "definition_id": "6728ee4f-ba17-4a02-8989-ed48eb51d73f",
+      "descriptor_map": [
+        {
+          "id": "citizenship",
+          "format": "ldp_vc",
+          "path": "$.verifiableCredential[0]"
+        }
+      ]
+    }
+  }
+}
+----
+
+== Discussion ==
+
+the current approach uses modern signature schemes (EdDSA, BBS+) that allows for user controlled selective disclosure up to the point, that minimally a pseudonymous identifier is disclosed to a webservice. To further increase privacy features (i.e. non traceability) of this solution, a signature scheme for VCs should be applied, that allows utilization of a "blinded link secret" as in anoncreds with CL-signatures.
+
+== References
+
+[[RFC0067]]
+Aries RFC 0067: DIDComm DID document conventions:: Tobias Looker; Stephen Curran. 10 June 2019. Hyperledger Foundation. https://github.com/hyperledger/aries-rfcs/tree/main/features/0067-didcomm-diddoc-conventions
+
+[[RFC0434]]
+Aries RFC 0434: Out-of-Band Protocols:: Ryan West; Daniel Bluhm; Matthew Hailstone; Stephen Curran; Sam Curren; George Aristy. 1 March 2020. Hyperledger Foundation. https://github.com/hyperledger/aries-rfcs/tree/2da7fc4ee043effa3a9960150e7ba8c9a4628b68/features/0434-outofband
+
+[[RFC0454]]
+Aries RFC 0454: Present Proof Protocol 2.0:: Nikita Khateev; Stephen Curran. 27 May 2020. Hyperledger Foundation. https://github.com/hyperledger/aries-rfcs/tree/eace815c3e8598d4a8dd7881d8c731fdb2bcc0aa/features/0454-present-proof-v2
+
+[[DID]]
+Decentralized Identifiers (DIDs) v1.0:: Manu Sporny; Amy Guy; Markus Sabadello; Drummond Reed. W3C. 3 August 2021. W3C Proposed Recommendation. https://www.w3.org/TR/did-core/
+
+[[DIDSPECREG]]
+DID Specification Registries:: Orie Steele; Manu Sporny; Michael Prorock. W3C. 02 November 2021. W3C Working Group Note. https://www.w3.org/TR/did-spec-registries/
+
+[[OIDC]]
+OpenID Connect Core 1.0:: N. Sakimura; J. Bradley; M. Jones; B. de Medeiros; C. Mortimore. The OpenID Foundation. 8 November 2014. Approved Specification. https://openid.net/specs/openid-connect-core-1_0.html
+
+[[PRESEX]]
+Presentation Exchange v1.0.0:: Daniel Buchner;
+Brent Zundel;
+Martin Riedel. DIF. Ratified Specification. https://identity.foundation/presentation-exchange/spec/v1.0.0/
+
+[[SIOP]]
+Self-Issued OpenID Provider v2:: K. Yasuda; M.Jones. 28 January 2022. https://openid.net/specs/openid-connect-self-issued-v2-1_0.html
+
+[[VC]]
+Verifiable Credentials Data Model v1.1:: Manu Sporny; Grant Noble; Dave Longley; Daniel C. Burnett; Brent Zundel; Kyle Den Hartog. W3C. 3 March 2022. W3C Recommendation. https://www.w3.org/TR/vc-data-model/
