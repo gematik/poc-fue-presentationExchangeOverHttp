@@ -113,7 +113,7 @@ To initiate the communication between holder and verifier, an out-of-band invita
   "goal_code": "request-proof",
   "goal": "To request a citizenship credential for identity proving",
   "handshake_protocols": [
-    "px-over-http/0.1"
+    "https://pxh.me/0.1"
   ],
   "services": [
     {
