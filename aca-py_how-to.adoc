@@ -1,0 +1,173 @@
+:toc:
+:toc-placement: macro
+:toclevels: 3
+:sectanchors:
+:numbered:
+:sectnums:
+:icons: font
+:imagesdir: images
+
+= How To: Using PX-over-HTTP with aca-py
+
+toc::[]
+
+== Setup
+. Clone https://gitlab.lab.gematik.de/Vorentwicklung/aries-cloudagent-python.git[the aries-cloudagent-python repo] from the futurelab gitlab
+
+. Checkout branch `px-over-http`
+
+. Start two agents - holder and verifier - using the following commands:
++
+[source,bash]
+.holder startup command
+----
+export PORTS="8040-8041" && \
+docker/manage start \
+--label holder.agent \
+--inbound-transport http 0.0.0.0 8040 \
+--outbound-transport http \
+--admin 0.0.0.0 8041 \
+--endpoint http://host.docker.internal:8040 \
+--wallet-type askar \
+--wallet-name holder \
+--wallet-key secret \
+--auto-provision \
+--admin-insecure-mode \
+--emit-new-didcomm-prefix \
+--emit-new-didcomm-mime-type \
+--no-ledger \
+--log-level info
+----
++
+[source,bash]
+.verifier startup command
+----
+export PORTS="8070-8071" && \
+docker/manage start \
+--label verifier.agent \
+--inbound-transport http 0.0.0.0 8070 \
+--outbound-transport http \
+--admin 0.0.0.0 8071 \
+--endpoint http://host.docker.internal:8070 \
+--wallet-type askar \
+--wallet-name verifier \
+--wallet-key secret \
+--auto-provision \
+--admin-insecure-mode \
+--emit-new-didcomm-prefix \
+--emit-new-didcomm-mime-type \
+--no-ledger \
+--log-level info
+----
+
+. In the following, the holder will need a 'Permanent Resident Card' credential. Start another agent, which will act as our issuer, using the following command:
++
+[source,bash]
+.issuer startup command
+----
+export PORTS="8060-8061" && \
+docker/manage start \
+--label bdr.agent \
+--inbound-transport http 0.0.0.0 8060 \
+--outbound-transport http \
+--admin 0.0.0.0 8061 \
+--endpoint http://host.docker.internal:8060 \
+--wallet-type askar \
+--wallet-name issuer \
+--wallet-key secret \
+--auto-provision \
+--admin-insecure-mode \
+--emit-new-didcomm-prefix \
+--emit-new-didcomm-mime-type \
+--no-ledger \
+--log-level info
+----
++
+The https://github.com/IDunion/ap13-aca-controller[ap13-aca-controller]-project can be used to issue the permanent resident card credential. Clone the project and run `UC4` in the aca-controller (refer to https://github.com/IDunion/ap13-aca-controller/blob/master/README.adoc[the project documentation] on how to do this).
+
+. The holder should now be in possession of a permanent resident card credential. Let's get started!
+
+
+== Requesting and issuing a presentation via px-over-HTTP
+In this tutorial, we will simulate a user agent requesting access to a website. The web service responds with an out-of-band invitation in which it advertises its px-over-http endpoint (which, in this case, leads to an aca-py instance). The holder receives the invitation, accepts it and responds to the incoming auth request by issuing an adequate presentation in JWT-VP format. The verifier-service verifies the presentation and notifies the web service of the result. On successful verification, the web service will eventually grant access to the user agent. +
+The following sequence diagram illustrates in more detail how the different parties interact:
+
+[plantuml]
+----
+@startuml
+'https://plantuml.com/sequence-diagram
+
+skinparam BoxPadding 10
+
+participant "User Wallet" as User
+participant "Holder(PXH)" as HolderAgent
+participant UserAgent
+participant "Verifier(PXH)" as VerifierAgent
+participant "Web Service" as webservice
+
+
+UserAgent -> webservice : access resource
+
+== Web Service invites Holder ==
+
+webservice  -> VerifierAgent : create-invitation
+webservice  -> webservice    : bind ""invitation_msg_id""\nto session
+webservice --> UserAgent     : Login page with invitation app/universal link and qr code
+UserAgent   -> webservice    : Polling
+
+alt co-located wallet - user clicks app/universal link
+    UserAgent -> User : Invitation
+else cross-device - user scans qr code
+    User -> UserAgent : Scans invitation qr code : Invitation
+end
+
+User           -> HolderAgent   : receive-invitation
+HolderAgent    -> VerifierAgent : POST\nhttps://pxh.me\n(body: {"invitation_msg_id": <invitationMsgId>}
+VerifierAgent ->> webservice    : Event(Connection)
+webservice     -> webservice    : bind ""connection_id""\nto session
+
+== Web Service prepares Presentation Definition & triggers creation of Authentication Request ==
+
+webservice    -> webservice    : build Presentation\nDefinition
+webservice    -> VerifierAgent : /present-proof-2.0/send-request
+VerifierAgent -> VerifierAgent : build Auth Request
+
+== Holder receives Authentication Request and creates Verifiable Presentation with W3C credentials ==
+
+VerifierAgent ->> webservice    : Event(present_proof_v2_0)
+HolderAgent   <-- VerifierAgent : 200 OK(body: <Auth Request>)
+HolderAgent   ->> User          : Event(present_proof_v2_0)
+User           -> User          : request confirmation
+User           -> HolderAgent   : credentialsW3cPost : credentials
+User           -> User          : create presentationSpec
+User           -> HolderAgent   : /present-proof-2.0/...\n/send-presentation(presentationSpec)
+note left of VerifierAgent : session information is conveyed via ""session"" parameter.
+
+HolderAgent   ->  VerifierAgent : POST https://webservice.com/pxh(body: <JWT_VP>)
+HolderAgent   <-- VerifierAgent : 200 OK
+VerifierAgent ->> webservice    : Event(present_proof_v2_0)
+
+== Web Service verifies authentication ==
+
+webservice     -> VerifierAgent : /present-proof-2.0/.../verify-presentation
+VerifierAgent  -> VerifierAgent : check JWT\nsignature
+VerifierAgent  -> VerifierAgent : verify credentials
+webservice    <-- VerifierAgent : verification OK
+UserAgent     <-- webservice    : grant access
+
+@enduml
+----
+
+=== Steps taken by the verifier
+
+==== Generating an out-of-band invitation
+
+
+==== Creating the auth request
+==== Sending the auth request
+==== Receiving the auth response
+
+=== Steps taken by the holder
+==== Receiving an out-of-band invitation
+==== Accepting the invitation and receiving the auth request
+==== Sending the auth response
