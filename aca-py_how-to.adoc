@@ -89,7 +89,7 @@ The https://github.com/IDunion/ap13-aca-controller[ap13-aca-controller]-project 
 
 
 == Requesting and issuing a presentation via px-over-HTTP
-In this tutorial, we will simulate a user agent requesting access to a website. The web service responds with an out-of-band invitation in which it advertises its px-over-http endpoint (which, in this case, leads to an aca-py instance). The holder receives the invitation, accepts it and responds to the incoming auth request by issuing an adequate presentation in JWT-VP format. The verifier-service verifies the presentation and notifies the web service of the result. On successful verification, the web service will eventually grant access to the user agent. +
+In this tutorial, we will simulate a client application (e.g. a browser) requesting access to a website. The web service responds with an out-of-band invitation in which it advertises its px-over-http endpoint (which, in this case, leads to an aca-py instance). The holder receives the invitation, accepts it and responds to the incoming auth request by issuing an adequate presentation in JWT-VP format. The verifier-service verifies the presentation and notifies the web service of the result. On successful verification, the web service will eventually grant access to the user agent. +
 The following sequence diagram illustrates in more detail how the different parties interact:
 
 [plantuml]
@@ -99,29 +99,29 @@ The following sequence diagram illustrates in more detail how the different part
 
 skinparam BoxPadding 10
 
-participant "User Wallet" as User
-participant "Holder(PXH)" as HolderAgent
-participant UserAgent
-participant "Verifier(PXH)" as VerifierAgent
+participant "Controller\n(App)" as controller
+participant "Holder Agent\n(PXH)" as HolderAgent
+participant "Client Application\n(Browser)" as client
+participant "Verifier\n(PXH)" as VerifierAgent
 participant "Web Service" as webservice
 
 
-UserAgent -> webservice : access resource
+client -> webservice : access resource
 
 == Web Service invites Holder ==
 
 webservice  -> VerifierAgent : create-invitation
 webservice  -> webservice    : bind ""invitation_msg_id""\nto session
-webservice --> UserAgent     : Login page with invitation app/universal link and qr code
-UserAgent   -> webservice    : Polling
+webservice --> client        : Login page with invitation app/universal link and qr code
+client      -> webservice    : Polling
 
 alt co-located wallet - user clicks app/universal link
-    UserAgent -> User : Invitation
+    client -> controller : Invitation
 else cross-device - user scans qr code
-    User -> UserAgent : Scans invitation qr code : Invitation
+    controller -> client : Scans invitation qr code : Invitation
 end
 
-User           -> HolderAgent   : receive-invitation
+controller     -> HolderAgent   : receive-invitation
 HolderAgent    -> VerifierAgent : POST\nhttps://pxh.me\n(body: {"invitation_msg_id": <invitationMsgId>}
 VerifierAgent ->> webservice    : Event(Connection)
 webservice     -> webservice    : bind ""connection_id""\nto session
@@ -136,11 +136,11 @@ VerifierAgent -> VerifierAgent : build Auth Request
 
 VerifierAgent ->> webservice    : Event(present_proof_v2_0)
 HolderAgent   <-- VerifierAgent : 200 OK(body: <Auth Request>)
-HolderAgent   ->> User          : Event(present_proof_v2_0)
-User           -> User          : request confirmation
-User           -> HolderAgent   : credentialsW3cPost : credentials
-User           -> User          : create presentationSpec
-User           -> HolderAgent   : /present-proof-2.0/...\n/send-presentation(presentationSpec)
+HolderAgent   ->> controller    : Event(present_proof_v2_0)
+controller     -> controller    : request confirmation
+controller     -> HolderAgent   : credentialsW3cPost : credentials
+controller     -> controller    : create presentationSpec
+controller     -> HolderAgent   : /present-proof-2.0/...\n/send-presentation(presentationSpec)
 note left of VerifierAgent : session information is conveyed via ""session"" parameter.
 
 HolderAgent   ->  VerifierAgent : POST https://webservice.com/pxh(body: <JWT_VP>)
@@ -153,7 +153,7 @@ webservice     -> VerifierAgent : /present-proof-2.0/.../verify-presentation
 VerifierAgent  -> VerifierAgent : check JWT\nsignature
 VerifierAgent  -> VerifierAgent : verify credentials
 webservice    <-- VerifierAgent : verification OK
-UserAgent     <-- webservice    : grant access
+client        <-- webservice    : grant access
 
 @enduml
 ----
