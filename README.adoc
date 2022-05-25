@@ -40,23 +40,23 @@ skinparam BoxPadding 10
 
 participant "Controller\n(Mobile App)" as controller
 participant "Holder Agent" as HolderAgent
-participant "Client\nApplication" as UserAgent
+participant Browser
 participant "Web Service\n+ Verifier" as webservice
 
 
-UserAgent -> webservice : access resource
+Browser -> webservice : access resource
 
 == Web Service invites Holder ==
 
 webservice  -> webservice : create invitation
 webservice  -> webservice : bind ""invitation_msg_id""\nto session
-webservice --> UserAgent  : Login page with invitation app/universal link and qr code
-UserAgent   -> webservice : Polling
+webservice --> Browser  : Login page with invitation app/universal link and qr code
+Browser   -> webservice : Polling
 
 alt co-located wallet - user clicks app/universal link
-    UserAgent -> controller : Invitation
+    Browser -> controller : Invitation
 else cross-device - user scans qr code
-    controller -> UserAgent : Scans invitation qr code : Invitation
+    controller -> Browser : Scans invitation qr code : Invitation
 end
 
 controller           -> HolderAgent : receive-invitation
@@ -86,9 +86,9 @@ webservice  -> webservice : check JWT\nsignature
 webservice  -> webservice : verify credentials
 
 alt verification OK
-    UserAgent     <-- webservice : grant access
+    Browser     <-- webservice : grant access
 else verificationf failed
-    UserAgent     <-- webservice : deny access
+    Browser     <-- webservice : deny access
 end
 
 @enduml
