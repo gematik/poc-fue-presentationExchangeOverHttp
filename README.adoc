@@ -38,57 +38,58 @@ image:PXoverHTTP.svg[]
 
 skinparam BoxPadding 10
 
-participant "Controller\n(Mobile App)" as controller
+participant "Controller\n(Mobile App)" as Controller
 participant "Holder Agent" as HolderAgent
 participant Browser
-participant "Web Service\n+ Verifier" as webservice
+participant Verifier
+participant "Web Service" as Webservice
 
-
-Browser -> webservice : access resource
+Browser -> Webservice : access resource
 
 == Web Service invites Holder ==
 
-webservice  -> webservice : create invitation
-webservice  -> webservice : bind ""invitation_msg_id""\nto session
-webservice --> Browser  : Login page with invitation app/universal link and qr code
-Browser   -> webservice : Polling
+Webservice  -> Verifier   : start pxh-auth : invitation
+Webservice  -> Webservice : bind ""invitation_msg_id""\nto session
+Webservice --> Browser    : Login page with invitation app/universal link and qr code
+Browser     -> Webservice : Polling
 
 alt co-located wallet - user clicks app/universal link
-    Browser -> controller : Invitation
+    Browser -> Controller : Invitation
 else cross-device - user scans qr code
-    controller -> Browser : Scans invitation qr code : Invitation
+    Controller -> Browser : Scans invitation qr code : Invitation
 end
 
-controller           -> HolderAgent : receive-invitation
-HolderAgent    -> webservice  : POST\nhttps://webservice.com/pxh\n(body: {"invitation_msg_id": <invitationMsgId>}
+Controller  -> HolderAgent : receive-invitation
+HolderAgent -> Verifier    : POST\nhttps://webservice.com/pxh\n(body: {"invitation_msg_id": <invitationMsgId>}
 
 == Web Service prepares Presentation Definition & triggers creation of Authentication Request ==
 
-webservice -> webservice : create/fetch\nPresentation Definition
-webservice -> webservice : create Auth Request
+Verifier -> Verifier : create/fetch\nPresentation Definition
+Verifier -> Verifier : create Auth Request
 
 == Holder receives Authentication Request and creates Verifiable Presentation with W3C credentials ==
 
-HolderAgent   <-- webservice  : 200 OK(body: <Auth Request>)
-HolderAgent   ->> controller        : Event(present_proof_v2_0)
-controller           -> controller        : request confirmation
-controller           -> HolderAgent : credentialsW3cPost : credentials
-controller           -> controller        : create presentationSpec
-controller           -> HolderAgent : /present-proof-2.0/...\n/send-presentation(presentationSpec)
-note left of webservice : session information is conveyed via ""session"" parameter.
+HolderAgent <-- Verifier    : 200 OK(body: <Auth Request>)
+HolderAgent ->> Controller  : Event(present_proof_v2_0)
+Controller   -> Controller  : request confirmation
+Controller   -> HolderAgent : credentialsW3cPost : credentials
+Controller   -> Controller  : create presentationSpec
+Controller   -> HolderAgent : /present-proof-2.0/...\n/send-presentation(presentationSpec)
+note left of Verifier : session information is conveyed via ""session"" parameter\n(which contains the invitation_msg_id).
 
-HolderAgent   ->  webservice : POST https://webservice.com/pxh(body: <JWT_VP>)
-HolderAgent   <-- webservice : 200 OK
+HolderAgent  -> Verifier : POST https://webservice.com/pxh(body: <JWT_VP>)
+HolderAgent <-- Verifier : 200 OK
 
 == Web Service verifies authentication ==
 
-webservice  -> webservice : check JWT\nsignature
-webservice  -> webservice : verify credentials
+Verifier  -> Verifier   : check JWT\nsignature
+Verifier  -> Verifier   : verify credentials
+Verifier ->> Webservice : verification result
 
 alt verification OK
-    Browser     <-- webservice : grant access
+    Browser <-- Webservice : grant access
 else verificationf failed
-    Browser     <-- webservice : deny access
+    Browser <-- Webservice : deny access
 end
 
 @enduml
