@@ -61,7 +61,7 @@ else cross-device - user scans qr code
 end
 
 User           -> HolderAgent   : receive-invitation
-HolderAgent    -> VerifierAgent : POST\nhttps://pxh.me\n(body: {"invitation_msg_id": <invitationMsgId>}
+HolderAgent    -> VerifierAgent : POST\nhttps://webservice.com/pxh\n(body: {"invitation_msg_id": <invitationMsgId>}
 VerifierAgent ->> webservice    : Event(Connection)
 webservice     -> webservice    : bind ""connection_id""\nto session
 
