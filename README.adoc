@@ -38,61 +38,58 @@ image:PXoverHTTP.svg[]
 
 skinparam BoxPadding 10
 
-participant "User Wallet" as User
-participant "Holder(PXH)" as HolderAgent
-participant UserAgent
-participant "Verifier(PXH)" as VerifierAgent
-participant "Web Service" as webservice
+participant "Controller\n(Mobile App)" as controller
+participant "Holder Agent" as HolderAgent
+participant "Client\nApplication" as UserAgent
+participant "Web Service\n+ Verifier" as webservice
 
 
 UserAgent -> webservice : access resource
 
 == Web Service invites Holder ==
 
-webservice  -> VerifierAgent : create-invitation
-webservice  -> webservice    : bind ""invitation_msg_id""\nto session
-webservice --> UserAgent     : Login page with invitation app/universal link and qr code
-UserAgent   -> webservice    : Polling
+webservice  -> webservice : create invitation
+webservice  -> webservice : bind ""invitation_msg_id""\nto session
+webservice --> UserAgent  : Login page with invitation app/universal link and qr code
+UserAgent   -> webservice : Polling
 
 alt co-located wallet - user clicks app/universal link
-    UserAgent -> User : Invitation
+    UserAgent -> controller : Invitation
 else cross-device - user scans qr code
-    User -> UserAgent : Scans invitation qr code : Invitation
+    controller -> UserAgent : Scans invitation qr code : Invitation
 end
 
-User           -> HolderAgent   : receive-invitation
-HolderAgent    -> VerifierAgent : POST\nhttps://webservice.com/pxh\n(body: {"invitation_msg_id": <invitationMsgId>}
-VerifierAgent ->> webservice    : Event(Connection)
-webservice     -> webservice    : bind ""connection_id""\nto session
+controller           -> HolderAgent : receive-invitation
+HolderAgent    -> webservice  : POST\nhttps://webservice.com/pxh\n(body: {"invitation_msg_id": <invitationMsgId>}
 
 == Web Service prepares Presentation Definition & triggers creation of Authentication Request ==
 
-webservice    -> webservice    : build Presentation\nDefinition
-webservice    -> VerifierAgent : /present-proof-2.0/send-request
-VerifierAgent -> VerifierAgent : build Auth Request
+webservice -> webservice : create/fetch\nPresentation Definition
+webservice -> webservice : create Auth Request
 
 == Holder receives Authentication Request and creates Verifiable Presentation with W3C credentials ==
 
-VerifierAgent ->> webservice    : Event(present_proof_v2_0)
-HolderAgent   <-- VerifierAgent : 200 OK(body: <Auth Request>)
-HolderAgent   ->> User          : Event(present_proof_v2_0)
-User           -> User          : request confirmation
-User           -> HolderAgent   : credentialsW3cPost : credentials
-User           -> User          : create presentationSpec
-User           -> HolderAgent   : /present-proof-2.0/...\n/send-presentation(presentationSpec)
-note left of VerifierAgent : session information is conveyed via ""session"" parameter.
+HolderAgent   <-- webservice  : 200 OK(body: <Auth Request>)
+HolderAgent   ->> controller        : Event(present_proof_v2_0)
+controller           -> controller        : request confirmation
+controller           -> HolderAgent : credentialsW3cPost : credentials
+controller           -> controller        : create presentationSpec
+controller           -> HolderAgent : /present-proof-2.0/...\n/send-presentation(presentationSpec)
+note left of webservice : session information is conveyed via ""session"" parameter.
 
-HolderAgent   ->  VerifierAgent : POST https://webservice.com/pxh(body: <JWT_VP>)
-HolderAgent   <-- VerifierAgent : 200 OK
-VerifierAgent ->> webservice    : Event(present_proof_v2_0)
+HolderAgent   ->  webservice : POST https://webservice.com/pxh(body: <JWT_VP>)
+HolderAgent   <-- webservice : 200 OK
 
 == Web Service verifies authentication ==
 
-webservice     -> VerifierAgent : /present-proof-2.0/.../verify-presentation
-VerifierAgent  -> VerifierAgent : check JWT\nsignature
-VerifierAgent  -> VerifierAgent : verify credentials
-webservice    <-- VerifierAgent : verification OK
-UserAgent     <-- webservice    : grant access
+webservice  -> webservice : check JWT\nsignature
+webservice  -> webservice : verify credentials
+
+alt verification OK
+    UserAgent     <-- webservice : grant access
+else verificationf failed
+    UserAgent     <-- webservice : deny access
+end
 
 @enduml
 ----
