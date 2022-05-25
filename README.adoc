@@ -48,7 +48,7 @@ Browser -> Webservice : access resource
 
 == Web Service invites Holder ==
 
-Webservice  -> Verifier   : start pxh-auth : invitation
+Webservice  -> Verifier   : start pxh-auth(presentation definition, callback) : invitation
 Webservice  -> Webservice : bind ""invitation_msg_id""\nto session
 Webservice --> Browser    : Login page with invitation app/universal link and qr code
 Browser     -> Webservice : Polling
@@ -75,9 +75,9 @@ Controller   -> Controller  : request confirmation
 Controller   -> HolderAgent : credentialsW3cPost : credentials
 Controller   -> Controller  : create presentationSpec
 Controller   -> HolderAgent : /present-proof-2.0/...\n/send-presentation(presentationSpec)
-note left of Verifier : session information is conveyed via ""session"" parameter\n(which contains the invitation_msg_id).
+note left of Verifier : session information is conveyed via ""session"" query parameter.
 
-HolderAgent  -> Verifier : POST https://webservice.com/pxh(body: <JWT_VP>)
+HolderAgent  -> Verifier : POST https://webservice.com/pxh?session=<invitation_msg_id>(body: <JWT_VP>)
 HolderAgent <-- Verifier : 200 OK
 
 == Web Service verifies authentication ==
