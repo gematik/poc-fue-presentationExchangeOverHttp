@@ -20,7 +20,7 @@ toc::[]
 
 - for many use cases (e.g. login to a web portal) a simpler, developer friendly approach is desirable
 
-- usable with mobile wallets (not only), 'always on' connectivity assumed, no persistent connection needed (session based approach)
+- usable with mobile wallets (not only), where no persistent connection is needed (session based approach)
 
 - inspired by OIDC/SIOPv2 (and Aries protocols) but not compatible
 
@@ -43,15 +43,21 @@ participant "Holder Agent" as HolderAgent
 participant "Client\nApplication" as UserAgent
 participant "Web Service\n+ Verifier" as webservice
 
-
 UserAgent -> webservice : access resource
+activate UserAgent
 
 == Web Service invites Holder ==
-
+activate webservice
 webservice  -> webservice : create invitation
+
+note right: Invitation Message
 webservice  -> webservice : bind ""invitation_msg_id""\nto session
 webservice --> UserAgent  : Login page with invitation app/universal link and qr code
+deactivate UserAgent
+
+
 UserAgent   -> webservice : Polling
+activate UserAgent
 
 alt co-located wallet - user clicks app/universal link
     UserAgent -> controller : Invitation
@@ -60,7 +66,9 @@ else cross-device - user scans qr code
 end
 
 controller           -> HolderAgent : receive-invitation
+activate HolderAgent
 HolderAgent    -> webservice  : POST\nhttps://webservice.com/pxh\n(body: {"invitation_msg_id": <invitationMsgId>}
+
 
 == Web Service prepares Presentation Definition & triggers creation of Authentication Request ==
 
@@ -70,6 +78,8 @@ webservice -> webservice : create Auth Request
 == Holder receives Authentication Request and creates Verifiable Presentation with W3C credentials ==
 
 HolderAgent   <-- webservice  : 200 OK(body: <Auth Request>)
+deactivate HolderAgent
+
 HolderAgent   ->> controller        : Event(present_proof_v2_0)
 controller           -> controller        : request confirmation
 controller           -> HolderAgent : credentialsW3cPost : credentials
@@ -77,8 +87,11 @@ controller           -> controller        : create presentationSpec
 controller           -> HolderAgent : /present-proof-2.0/...\n/send-presentation(presentationSpec)
 note left of webservice : session information is conveyed via ""session"" parameter.
 
+
 HolderAgent   ->  webservice : POST https://webservice.com/pxh(body: <JWT_VP>)
+activate HolderAgent
 HolderAgent   <-- webservice : 200 OK
+deactivate HolderAgent
 
 == Web Service verifies authentication ==
 
@@ -90,7 +103,8 @@ alt verification OK
 else verificationf failed
     UserAgent     <-- webservice : deny access
 end
-
+deactivate webservice
+deactivate UserAgent
 @enduml
 ----
 
