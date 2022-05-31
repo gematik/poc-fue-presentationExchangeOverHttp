@@ -68,6 +68,8 @@ Browser -> Webservice : Polling
 activate Browser
 activate Webservice
 
+== Holder receives & accepts invitation ==
+
 alt #lightblue co-located wallet - user clicks app/universal link
     User    ->> Browser    : click link
     Browser ->> Controller : Invitation
