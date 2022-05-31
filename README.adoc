@@ -66,11 +66,11 @@ activate User
 Browser -> Webservice : Polling
 activate Browser
 
-alt co-located wallet - user clicks app/universal link
+alt #lightblue co-located wallet - user clicks app/universal link
     User    ->> Browser    : click link
     Browser ->> Controller : Invitation
     activate Controller
-else cross-device - user scans qr code
+else #lavender cross-device - user scans qr code
     User       ->> Controller : open scanner
     Controller  -> Browser    : Scans invitation qr code : Invitation
 end
@@ -159,9 +159,9 @@ Verifier  -> Verifier   : verify credentials
 Verifier ->> Webservice : callback(verification result)
 deactivate Verifier
 
-alt verification OK
+alt #lightblue verification OK
     Browser <-- Webservice : grant access
-else verificationf failed
+else #lavender verificationf failed
     Browser <-- Webservice : deny access
 end
 
