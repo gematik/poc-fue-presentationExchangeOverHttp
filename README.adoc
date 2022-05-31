@@ -46,7 +46,7 @@ participant Browser
 participant Verifier
 participant "Web Service" as Webservice
 
-activate User
+
 User    -> Browser    : navigate to resource
 activate Browser
 Browser -> Webservice : access resource
@@ -62,31 +62,44 @@ Webservice  -> Webservice : bind ""invitation_msg_id""\nto session
 Webservice --> Browser    : Login page with invitation app/universal link and qr code
 User       <-- Browser    : Login page
 deactivate Browser
+activate User
 Browser -> Webservice : Polling
 activate Browser
 
 alt co-located wallet - user clicks app/universal link
-    User     ->> Browser    : click link
+    User    ->> Browser    : click link
     Browser ->> Controller : Invitation
+    activate Controller
 else cross-device - user scans qr code
     User       ->> Controller : open scanner
-    Controller -> Browser    : Scans invitation qr code : Invitation
+    Controller  -> Browser    : Scans invitation qr code : Invitation
 end
 
-User      <<-  Controller  : receive invitation?
-User      ->> Controller  : OK
-activate Controller
+opt
+    User <-  Controller : receive invitation?
+    deactivate Controller
+    User --> Controller : OK
+    deactivate User
+    activate Controller
+end
+
 Controller -> HolderAgent : receive-invitation
 activate HolderAgent
 HolderAgent -> HolderAgent : create conn record
 Controller <-- HolderAgent : 200 OK : conn record
-deactivate HolderAgent
-User      <<-  Controller  : accept invitation?
-deactivate Controller
-User      ->> Controller  : OK
-activate Controller
-Controller -> HolderAgent : accept-invitation(connection_id)
-activate HolderAgent
+
+opt
+    User      <-  Controller  : accept invitation?
+    deactivate HolderAgent
+    deactivate Controller
+    activate User
+    User      --> Controller  : OK
+    deactivate User
+    activate Controller
+    Controller -> HolderAgent : accept-invitation(connection_id)
+    activate HolderAgent
+end
+
 HolderAgent -> Verifier : invitation response(invitation_msg_id)
 activate Verifier
 
@@ -106,18 +119,26 @@ HolderAgent ->  HolderAgent : create pres ex record
 HolderAgent ->> Controller  : Event(pres ex record)
 deactivate HolderAgent
 activate Controller
-User <<-  Controller : send presentation?
+User <-  Controller : send presentation?
 deactivate Controller
-User ->> Controller : OK
+activate User
+User --> Controller : OK
+deactivate User
 activate Controller
 Controller -> HolderAgent : fetch matching credentials
 activate HolderAgent
 Controller <-- HolderAgent : credentials
 deactivate HolderAgent
-User <<- Controller  : choose credentials
-deactivate Controller
-User ->> Controller : credentials
-activate Controller
+
+opt
+    User <- Controller  : choose credentials
+    deactivate Controller
+    activate User
+    User --> Controller : credentials
+    deactivate User
+    activate Controller
+end
+
 Controller -> Controller  : create presentationSpec
 Controller -> HolderAgent : send-presentation(presentationSpec)
 activate HolderAgent
@@ -126,10 +147,10 @@ HolderAgent ->  Verifier : JWT_VP
 note right of Verifier : session information is conveyed via ""session"" parameter.
 activate Verifier
 HolderAgent <-- Verifier   : 200 OK
-Verifier    ->> Webservice : callback("presentation received")
 Controller  <-- HolderAgent : 200 OK : pres ex record
 deactivate HolderAgent
 deactivate Controller
+Verifier    ->> Webservice : callback("presentation received")
 
 == Verifier checks presentation ==
 
@@ -143,10 +164,13 @@ alt verification OK
 else verificationf failed
     Browser <-- Webservice : deny access
 end
+
 deactivate Webservice
 Browser --> User : display result
 deactivate Browser
 deactivate Controller
+deactivate User
+
 @enduml
 ----
 
