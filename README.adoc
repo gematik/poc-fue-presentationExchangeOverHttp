@@ -115,6 +115,7 @@ Verifier -> Verifier : create Auth Request
 HolderAgent <-- Verifier    : 200 OK : Auth Request
 Verifier    ->> Webservice  : callback("auth request sent")
 deactivate Verifier
+HolderAgent  -> HolderAgent : update conn record
 Controller  <-- HolderAgent : 200 OK : conn record
 deactivate Controller
 HolderAgent ->  HolderAgent : create pres ex record
