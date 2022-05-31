@@ -37,74 +37,116 @@ image:PXoverHTTP.svg[]
 'https://plantuml.com/sequence-diagram
 
 skinparam BoxPadding 10
+autonumber
 
-participant "Controller\n(Mobile App)" as controller
+actor User
+participant "Controller\n(Mobile App)" as Controller
 participant "Holder Agent" as HolderAgent
-participant "Client\nApplication" as UserAgent
-participant "Web Service\n+ Verifier" as webservice
+participant Browser
+participant Verifier
+participant "Web Service" as Webservice
 
-UserAgent -> webservice : access resource
-activate UserAgent
+activate User
+User    -> Browser    : navigate to resource
+activate Browser
+Browser -> Webservice : access resource
 
 == Web Service invites Holder ==
-activate webservice
-webservice  -> webservice : create invitation
-
-note right: Invitation Message
-webservice  -> webservice : bind ""invitation_msg_id""\nto session
-webservice --> UserAgent  : Login page with invitation app/universal link and qr code
-deactivate UserAgent
-
-
-UserAgent   -> webservice : Polling
-activate UserAgent
+activate Webservice
+Verifier <- Webservice : start pxh-auth(pres definition, callback)
+activate Verifier
+Verifier  -> Verifier   : create invitation
+Verifier --> Webservice : invitation
+deactivate Verifier
+Webservice  -> Webservice : bind ""invitation_msg_id""\nto session
+Webservice --> Browser    : Login page with invitation app/universal link and qr code
+User       <-- Browser    : Login page
+deactivate Browser
+Browser -> Webservice : Polling
+activate Browser
 
 alt co-located wallet - user clicks app/universal link
-    UserAgent -> controller : Invitation
+    User     ->> Browser    : click link
+    Browser ->> Controller : Invitation
 else cross-device - user scans qr code
-    controller -> UserAgent : Scans invitation qr code : Invitation
+    User       ->> Controller : open scanner
+    Controller -> Browser    : Scans invitation qr code : Invitation
 end
 
-controller           -> HolderAgent : receive-invitation
+User      <<-  Controller  : receive invitation?
+User      ->> Controller  : OK
+activate Controller
+Controller -> HolderAgent : receive-invitation
 activate HolderAgent
-HolderAgent    -> webservice  : POST\nhttps://webservice.com/pxh\n(body: {"invitation_msg_id": <invitationMsgId>}
+HolderAgent -> HolderAgent : create conn record
+Controller <-- HolderAgent : 200 OK : conn record
+deactivate HolderAgent
+User      <<-  Controller  : accept invitation?
+deactivate Controller
+User      ->> Controller  : OK
+activate Controller
+Controller -> HolderAgent : accept-invitation(connection_id)
+activate HolderAgent
+HolderAgent -> Verifier : invitation response(invitation_msg_id)
+activate Verifier
 
+== Verifier prepares Presentation Definition & triggers creation of Authentication Request ==
 
-== Web Service prepares Presentation Definition & triggers creation of Authentication Request ==
-
-webservice -> webservice : create/fetch\nPresentation Definition
-webservice -> webservice : create Auth Request
+Verifier -> Verifier : create/fetch\nPresentation Definition
+Verifier -> Verifier : create Auth Request
 
 == Holder receives Authentication Request and creates Verifiable Presentation with W3C credentials ==
 
-HolderAgent   <-- webservice  : 200 OK(body: <Auth Request>)
+HolderAgent <-- Verifier    : 200 OK : Auth Request
+Verifier    ->> Webservice  : callback("auth request sent")
+deactivate Verifier
+Controller  <-- HolderAgent : 200 OK : conn record
+deactivate Controller
+HolderAgent ->  HolderAgent : create pres ex record
+HolderAgent ->> Controller  : Event(pres ex record)
 deactivate HolderAgent
-
-HolderAgent   ->> controller        : Event(present_proof_v2_0)
-controller           -> controller        : request confirmation
-controller           -> HolderAgent : credentialsW3cPost : credentials
-controller           -> controller        : create presentationSpec
-controller           -> HolderAgent : /present-proof-2.0/...\n/send-presentation(presentationSpec)
-note left of webservice : session information is conveyed via ""session"" parameter.
-
-
-HolderAgent   ->  webservice : POST https://webservice.com/pxh(body: <JWT_VP>)
+activate Controller
+User <<-  Controller : send presentation?
+deactivate Controller
+User ->> Controller : OK
+activate Controller
+Controller -> HolderAgent : fetch matching credentials
 activate HolderAgent
-HolderAgent   <-- webservice : 200 OK
+Controller <-- HolderAgent : credentials
 deactivate HolderAgent
+User <<- Controller  : choose credentials
+deactivate Controller
+User ->> Controller : credentials
+activate Controller
+Controller -> Controller  : create presentationSpec
+Controller -> HolderAgent : send-presentation(presentationSpec)
+activate HolderAgent
+HolderAgent -> HolderAgent : create presentation
+HolderAgent ->  Verifier : JWT_VP
+note right of Verifier : session information is conveyed via ""session"" parameter.
+activate Verifier
+HolderAgent <-- Verifier   : 200 OK
+Verifier    ->> Webservice : callback("presentation received")
+Controller  <-- HolderAgent : 200 OK : pres ex record
+deactivate HolderAgent
+deactivate Controller
 
-== Web Service verifies authentication ==
+== Verifier checks presentation ==
 
-webservice  -> webservice : check JWT\nsignature
-webservice  -> webservice : verify credentials
+Verifier  -> Verifier   : check JWT\nsignature
+Verifier  -> Verifier   : verify credentials
+Verifier ->> Webservice : callback(verification result)
+deactivate Verifier
 
 alt verification OK
-    UserAgent     <-- webservice : grant access
+    Browser <-- Webservice : grant access
 else verificationf failed
-    UserAgent     <-- webservice : deny access
+    Browser <-- Webservice : deny access
 end
-deactivate webservice
-deactivate UserAgent
+deactivate Webservice
+Browser --> User : display result
+deactivate Browser
+deactivate Controller
 @enduml
 ----
 
