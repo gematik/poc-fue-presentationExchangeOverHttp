@@ -53,18 +53,20 @@ Browser -> Webservice : access resource
 
 == Web Service invites Holder ==
 activate Webservice
-Verifier <- Webservice : start pxh-auth(pres definition, callback)
+Verifier <- Webservice : start pxh auth(pres definition, callback)
 activate Verifier
 Verifier  -> Verifier   : create invitation
 Verifier --> Webservice : invitation
 deactivate Verifier
 Webservice  -> Webservice : bind ""invitation_msg_id""\nto session
 Webservice --> Browser    : Login page with invitation app/universal link and qr code
+deactivate Webservice
 User       <-- Browser    : Login page
 deactivate Browser
 activate User
 Browser -> Webservice : Polling
 activate Browser
+activate Webservice
 
 alt #lightblue co-located wallet - user clicks app/universal link
     User    ->> Browser    : click link
