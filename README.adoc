@@ -39,10 +39,10 @@ image:PXoverHTTP.svg[]
 skinparam BoxPadding 10
 autonumber
 
+participant Browser
 actor User
 participant "Controller\n(Mobile App)" as Controller
 participant "Holder Agent" as HolderAgent
-participant Browser
 participant Verifier
 participant "Web Service" as Webservice
 
