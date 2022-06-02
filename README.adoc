@@ -195,11 +195,11 @@ To initiate the communication between holder and verifier, an out-of-band invita
   "goal_code": "request-proof",
   "goal": "To request a citizenship credential for identity proving",
   "handshake_protocols": [
-    "https://pxh.me/0.1"
+    "https://example.org/px-over-http/0.1"
   ],
   "services": [
     {
-      "id": "https://pxh.me",
+      "id": "https://webservice.com",
       "type": "px-over-http",
       "serviceEndpoint": "https://webservice.com/pxh"
     }
@@ -214,7 +214,7 @@ To construct the invitation URL, the invitation message is minified, Base64-enco
 
 .Invitation URL
 ....
-https://pxh.me?oob=eyJAdHlwZSI6ICJodHRwczogLy9kaWRjb21tLm9yZy9vdXQtb2YtYmFuZC8xLjAvaW52aXRhdGlvbiIsICJAaWQiOiAiNzQyYTY3YzctYmE4My00OTE0LTkwZmYtZTQ5NzY4NWNmNGI4IiwgImxhYmVsIjogIlJlbHlpbmcgUGFydHkgVmVyaWZpZXIiLCAiZ29hbF9jb2RlIjogInJlcXVlc3QtcHJvb2YiLCAiZ29hbCI6ICJUbyByZXF1ZXN0IGEgY2l0aXplbnNoaXAgY3JlZGVudGlhbCBmb3IgaWRlbnRpdHkgcHJvdmluZyIsICJoYW5kc2hha2VfcHJvdG9jb2xzIjogWyJodHRwczovL3B4aC5tZS8wLjEiXSwgInNlcnZpY2VzIjogW3siaWQiOiAiaHR0cHM6Ly9weGgubWUiLCAidHlwZSI6ICJweC1vdmVyLWh0dHAiLCAic2VydmljZUVuZHBvaW50IjogImh0dHBzOi8vd2Vic2VydmljZS5jb20vcHhoIn1dfQ==
+https://webservice.com?oob=eyJAdHlwZSI6ICJodHRwczogLy9kaWRjb21tLm9yZy9vdXQtb2YtYmFuZC8xLjAvaW52aXRhdGlvbiIsICJAaWQiOiAiNzQyYTY3YzctYmE4My00OTE0LTkwZmYtZTQ5NzY4NWNmNGI4IiwgImxhYmVsIjogIlJlbHlpbmcgUGFydHkgVmVyaWZpZXIiLCAiZ29hbF9jb2RlIjogInJlcXVlc3QtcHJvb2YiLCAiZ29hbCI6ICJUbyByZXF1ZXN0IGEgY2l0aXplbnNoaXAgY3JlZGVudGlhbCBmb3IgaWRlbnRpdHkgcHJvdmluZyIsICJoYW5kc2hha2VfcHJvdG9jb2xzIjogWyJodHRwczovL2V4YW1wbGUub3JnL3B4LW92ZXItaHR0cC8wLjEiXSwgInNlcnZpY2VzIjogW3siaWQiOiAiaHR0cHM6Ly93ZWJzZXJ2aWNlLmNvbSIsICJ0eXBlIjogInB4LW92ZXItaHR0cCIsICJzZXJ2aWNlRW5kcG9pbnQiOiAiaHR0cHM6Ly93ZWJzZXJ2aWNlLmNvbS9weGgifV19
 ....
 
 === Authentication Request with presentation definition
