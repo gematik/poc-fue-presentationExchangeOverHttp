@@ -389,6 +389,78 @@ An additional proof property may be included to represent a more complex proof (
 }
 ----
 
+=== Authentication Request for previously registered party
+
+If the party to be authenticated has previously registered with the verifier and all the required claims are therefore known, it is possible to send a reduced authentication request which does not request a presentation (or, to be more precise, only requests an empty presentation). In response, the holder will create a jwt_vp containing an empty presentation and sign it with the same key that was used for registration.
+
+.Mini Auth Request
+[source,json]
+----
+{
+    "presentation_definition": {
+        "format": {
+            "jwt_vp": {
+                "alg": [
+                    "EdDSA"
+                ]
+            }
+        },
+        "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "input_descriptors": []
+    },
+  "session": "66ff8c76-a77c-4658-b6ae-d6eb2581d318",
+  "nonce": "d05c5afe-4fe6-475c-87a2-7be22f00701b"
+}
+----
+
+=== Mini Auth Response
+
+.auth response
+[source,json]
+----
+{
+    "id_token": "eyJhbGciOiAiRWREU0EiLCAia2lkIjogImRpZDprZXk6ejZNa3FjWTR3cEZHaWhqcThFcEtxd3N3RHltN1FESjhldWNITEhSQld4ZW40Z1NMIiwgInR5cCI6ICJKV1QifQ.eyJpc3MiOiAiZGlkOmtleTp6Nk1rcWNZNHdwRkdpaGpxOEVwS3F3c3dEeW03UURKOGV1Y0hMSFJCV3hlbjRnU0wiLCAic3ViIjogImRpZDprZXk6ejZNa3FjWTR3cEZHaWhqcThFcEtxd3N3RHltN1FESjhldWNITEhSQld4ZW40Z1NMIiwgIm5iZiI6IDE2NTU5MDI5ODcsICJpYXQiOiAxNjU1OTAyOTg3LCAiZXhwIjogMTY1NTkzODk4NywgIm5vbmNlIjogImQwNWM1YWZlLTRmZTYtNDc1Yy04N2EyLTdiZTIyZjAwNzAxYiIsICJ2cCI6IHsiQGNvbnRleHQiOiBbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sICJ0eXBlIjogWyJWZXJpZmlhYmxlUHJlc2VudGF0aW9uIl0sICJ2ZXJpZmlhYmxlQ3JlZGVudGlhbCI6IFtdLCAicHJlc2VudGF0aW9uX3N1Ym1pc3Npb24iOiB7ImlkIjogIjYzNDEyNzYzLWNlY2ItNGFkNS05MDA4LWI2NjM0Mzk1MWUxOSIsICJkZWZpbml0aW9uX2lkIjogIjNmYTg1ZjY0LTU3MTctNDU2Mi1iM2ZjLTJjOTYzZjY2YWZhNiIsICJkZXNjcmlwdG9yX21hcCI6IFtdfX19.HQQZPSTrSWXq9h17fWf5_1dd1M_79eDne2UhCOZjQ98abCAPQJGRLaRsU_cGkO3jXL13SNtFy3CQvpAgN_BeDA",
+    "session": "66ff8c76-a77c-4658-b6ae-d6eb2581d318"
+}
+----
+
+.jwt_vp header
+[source,json]
+----
+{
+    "alg": "EdDSA",
+    "kid": "did:key:z6MkqcY4wpFGihjq8EpKqwswDym7QDJ8eucHLHRBWxen4gSL",
+    "typ": "JWT"
+}
+----
+
+.jwt_vp payload
+[source,json]
+----
+{
+    "iss": "did:key:z6MkqcY4wpFGihjq8EpKqwswDym7QDJ8eucHLHRBWxen4gSL",
+    "sub": "did:key:z6MkqcY4wpFGihjq8EpKqwswDym7QDJ8eucHLHRBWxen4gSL",
+    "nbf": 1655902987,
+    "iat": 1655902987,
+    "exp": 1655938987,
+    "nonce": "d05c5afe-4fe6-475c-87a2-7be22f00701b",
+    "vp": {
+        "@context": [
+            "https://www.w3.org/2018/credentials/v1"
+        ],
+        "type": [
+            "VerifiablePresentation"
+        ],
+        "verifiableCredential": [],
+        "presentation_submission": {
+            "id": "63412763-cecb-4ad5-9008-b66343951e19",
+            "definition_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "descriptor_map": []
+        }
+    }
+}
+----
+
 == Discussion ==
 
 the current approach uses modern signature schemes (EdDSA, BBS+) that allows for user controlled selective disclosure up to the point, that minimally a pseudonymous identifier is disclosed to a webservice. To further increase privacy features (i.e. non traceability) of this solution, a signature scheme for VCs should be applied, that allows utilization of a "blinded link secret" as in anoncreds with CL-signatures.
