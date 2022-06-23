@@ -391,7 +391,7 @@ An additional proof property may be included to represent a more complex proof (
 
 === Authentication Request for previously registered party
 
-If the party to be authenticated has previously registered with the verifier and all the required claims are therefore known, it is possible to send a reduced authentication request which does not request a presentation (or, to be more precise, only requests an empty presentation). In response, the holder will create a jwt_vp containing an empty presentation and sign it with the same key that was used for registration.
+If the party to be authenticated has previously registered with the verifier and all the required claims are therefore known, it is possible to send a reduced authentication request which does not request a presentation (or, to be more precise, only requests an empty presentation). In response, the holder will create a jwt_vp containing an empty presentation and sign it with the secret key corresponding to the public key that was used for registration.
 
 .Mini Auth Request
 [source,json]
