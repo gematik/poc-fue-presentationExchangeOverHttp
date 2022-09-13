@@ -1,0 +1,123 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+skinparam BoxPadding 10
+autonumber
+
+participant Browser
+actor User
+participant "Controller\n(Mobile App)" as Controller
+participant "Holder Agent" as HolderAgent
+participant Verifier
+participant "Web Service" as Webservice
+
+
+User    -> Browser    : navigate to resource
+activate Browser
+Browser -> Webservice : access resource
+
+== Verifier prepares Presentation Definition & creates Authentication Request ==
+
+activate Webservice
+Verifier <- Webservice : start pxh auth(pres definition, callback)
+activate Verifier
+Verifier -> Verifier : create Auth Request
+
+== Web Service invites Holder ==
+Verifier  -> Verifier   : create oob invitation\nwith attached Auth Request
+Verifier --> Webservice : invitation
+deactivate Verifier
+Webservice  -> Webservice : bind ""session"" parameter\nof Auth Request to session
+Webservice --> Browser    : Login page with invitation app/universal link and qr code
+deactivate Webservice
+User       <-- Browser    : Login page
+deactivate Browser
+activate User
+Browser -> Webservice : Polling
+activate Browser
+activate Webservice
+
+== Holder receives & accepts invitation ==
+
+alt #lightblue co-located wallet - user clicks app/universal link
+    User    ->> Browser    : click link
+    Browser ->> Controller : Invitation
+    activate Controller
+else #lavender cross-device - user scans qr code
+    User       ->> Controller : open scanner
+    Controller  -> Browser    : Scans invitation qr code : Invitation
+end
+
+opt
+    User <-  Controller : receive invitation?
+    deactivate Controller
+    User --> Controller : OK
+    deactivate User
+    activate Controller
+end
+
+Controller -> HolderAgent : receive-invitation
+activate HolderAgent
+HolderAgent -> HolderAgent : create OOB record
+Controller <-- HolderAgent : 200 OK : OOB record
+
+== Holder receives Authentication Request and creates Verifiable Presentation with W3C credentials ==
+
+deactivate Controller
+HolderAgent ->  HolderAgent : handle attachment
+HolderAgent ->> Controller  : Event(pres ex record)
+deactivate HolderAgent
+activate Controller
+User <-  Controller : send presentation?
+deactivate Controller
+activate User
+User --> Controller : OK
+deactivate User
+activate Controller
+Controller -> HolderAgent : fetch matching credentials
+activate HolderAgent
+Controller <-- HolderAgent : credentials
+deactivate HolderAgent
+
+opt
+    User <- Controller  : choose credentials
+    deactivate Controller
+    activate User
+    User --> Controller : credentials
+    deactivate User
+    activate Controller
+end
+
+Controller -> Controller  : create presentationSpec
+Controller -> HolderAgent : send-presentation(presentationSpec)
+activate HolderAgent
+HolderAgent -> HolderAgent : create presentation
+HolderAgent ->  Verifier : JWT_VP
+note right of Verifier : session information is conveyed via ""session"" parameter.
+activate Verifier
+HolderAgent <-- Verifier   : 200 OK
+Controller  <-- HolderAgent : 200 OK : pres ex record
+deactivate HolderAgent
+deactivate Controller
+Verifier    ->> Webservice : callback("presentation received")
+
+== Verifier checks presentation ==
+
+Verifier  -> Verifier   : check JWT\nsignature
+Verifier  -> Verifier   : verify credentials
+Verifier ->> Webservice : callback(verification result)
+deactivate Verifier
+
+alt #lightblue verification OK
+    Browser <-- Webservice : grant access
+else #lavender verificationf failed
+    Browser <-- Webservice : deny access
+end
+
+deactivate Webservice
+Browser --> User : display result
+deactivate Browser
+deactivate Controller
+deactivate User
+
+@enduml
