@@ -16,7 +16,7 @@ User    -> Browser    : navigate to resource
 activate Browser
 Browser -> Webservice : access resource
 
-== Verifier prepares Presentation Definition & creates Authentication Request ==
+== Verifier creates Authentication Request ==
 
 activate Webservice
 Verifier <- Webservice : start pxh auth(pres definition, callback)
@@ -37,7 +37,7 @@ Browser -> Webservice : Polling
 activate Browser
 activate Webservice
 
-== Holder receives & accepts invitation ==
+== Holder receives invitation with attached Auth Request ==
 
 alt #lightblue co-located wallet - user clicks app/universal link
     User    ->> Browser    : click link
@@ -61,7 +61,7 @@ activate HolderAgent
 HolderAgent -> HolderAgent : create OOB record
 Controller <-- HolderAgent : 200 OK : OOB record
 
-== Holder receives Authentication Request and creates Verifiable Presentation with W3C credentials ==
+== Holder creates Verifiable Presentation with W3C credentials ==
 
 deactivate Controller
 HolderAgent ->  HolderAgent : handle attachment
