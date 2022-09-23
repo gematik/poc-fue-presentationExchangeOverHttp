@@ -1,5 +1,10 @@
+[plantuml]
+----
 @startuml
 'https://plantuml.com/sequence-diagram
+
+skinparam BoxPadding 10
+autonumber
 
 skinparam BoxPadding 10
 autonumber
@@ -24,10 +29,10 @@ activate Verifier
 Verifier -> Verifier : create Auth Request
 
 == Web Service invites Holder ==
-Verifier  -> Verifier   : create oob invitation\nwith attached Auth Request\nand ""request_uri""
+Verifier  -> Verifier   : create oob invitation\nwith attached Auth Request
 Verifier --> Webservice : invitation
 deactivate Verifier
-Webservice  -> Webservice : bind ""invitation_msg_id"" \nto session
+Webservice  -> Webservice : bind ""invitation_msg_id""\nto session
 Webservice --> Browser    : Login page with invitation app/universal link and qr code
 deactivate Webservice
 User       <-- Browser    : Login page
@@ -40,20 +45,20 @@ activate Webservice
 == Holder receives invitation with attached Auth Request ==
 
 alt #lightblue co-located wallet - user clicks app/universal link
-    User    ->> Browser    : click link
-    Browser ->> Controller : Invitation
-    activate Controller
+User    ->> Browser    : click link
+Browser ->> Controller : Invitation
+activate Controller
 else #lavender cross-device - user scans qr code
-    User       ->> Controller : open scanner
-    Controller  -> Browser    : Scans invitation qr code : Invitation
+User       ->> Controller : open scanner
+Controller  -> Browser    : Scans invitation qr code : Invitation
 end
 
 opt
-    User <-  Controller : receive invitation?
-    deactivate Controller
-    User --> Controller : OK
-    deactivate User
-    activate Controller
+User <-  Controller : receive invitation?
+deactivate Controller
+User --> Controller : OK
+deactivate User
+activate Controller
 end
 
 Controller -> HolderAgent : receive-invitation
@@ -64,11 +69,7 @@ Controller <-- HolderAgent : 200 OK : OOB record
 == Holder creates Verifiable Presentation with W3C credentials ==
 
 deactivate Controller
-HolderAgent  -> HolderAgent : handle attachment
-HolderAgent  -> Verifier    : GET ""request_uri""
-note right                  : request confirmation by user?
-HolderAgent <-- Verifier    : request object (JWT)
-HolderAgent  -> HolderAgent : handle request object
+HolderAgent ->  HolderAgent : handle attachment
 HolderAgent ->> Controller  : Event(pres ex record)
 deactivate HolderAgent
 activate Controller
@@ -84,12 +85,12 @@ Controller <-- HolderAgent : credentials
 deactivate HolderAgent
 
 opt
-    User <- Controller  : choose credentials
-    deactivate Controller
-    activate User
-    User --> Controller : credentials
-    deactivate User
-    activate Controller
+User <- Controller  : choose credentials
+deactivate Controller
+activate User
+User --> Controller : credentials
+deactivate User
+activate Controller
 end
 
 Controller -> Controller  : create presentationSpec
@@ -113,9 +114,9 @@ Verifier ->> Webservice : callback(verification result)
 deactivate Verifier
 
 alt #lightblue verification OK
-    Browser <-- Webservice : grant access
+Browser <-- Webservice : grant access
 else #lavender verificationf failed
-    Browser <-- Webservice : deny access
+Browser <-- Webservice : deny access
 end
 
 deactivate Webservice
@@ -125,3 +126,4 @@ deactivate Controller
 deactivate User
 
 @enduml
+----

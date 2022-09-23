@@ -1,3 +1,5 @@
+[plantuml]
+----
 @startuml
 'https://plantuml.com/sequence-diagram
 
@@ -24,10 +26,10 @@ activate Verifier
 Verifier -> Verifier : create Auth Request
 
 == Web Service invites Holder ==
-Verifier  -> Verifier   : create oob invitation\nwith attached Auth Request
+Verifier  -> Verifier   : create oob invitation\nwith attached Auth Request\nand ""request_uri""
 Verifier --> Webservice : invitation
 deactivate Verifier
-Webservice  -> Webservice : bind ""invitation_msg_id""\nto session
+Webservice  -> Webservice : bind ""invitation_msg_id"" \nto session
 Webservice --> Browser    : Login page with invitation app/universal link and qr code
 deactivate Webservice
 User       <-- Browser    : Login page
@@ -64,7 +66,11 @@ Controller <-- HolderAgent : 200 OK : OOB record
 == Holder creates Verifiable Presentation with W3C credentials ==
 
 deactivate Controller
-HolderAgent ->  HolderAgent : handle attachment
+HolderAgent  -> HolderAgent : handle attachment
+HolderAgent  -> Verifier    : GET ""request_uri""
+note right                  : request confirmation by user?
+HolderAgent <-- Verifier    : request object (JWT)
+HolderAgent  -> HolderAgent : handle request object
 HolderAgent ->> Controller  : Event(pres ex record)
 deactivate HolderAgent
 activate Controller
@@ -121,3 +127,4 @@ deactivate Controller
 deactivate User
 
 @enduml
+----
