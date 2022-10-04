@@ -27,10 +27,10 @@ Verifier -> Verifier : create Auth Request
 
 == Web Service invites Holder ==
 Verifier  -> Verifier   : create oob invitation\nwith attached Auth Request\nand ""request_uri""
-Verifier --> Webservice : invitation
+Verifier --> Webservice : invitation (see note A)
 deactivate Verifier
 Webservice  -> Webservice : bind ""invitation_msg_id"" \nto session
-Webservice --> Browser    : Login page with invitation app/universal link and qr code
+Webservice --> Browser    : Login page with invitation app/universal link and qr code (see note B)
 deactivate Webservice
 User       <-- Browser    : Login page
 deactivate Browser
@@ -127,4 +127,146 @@ deactivate Controller
 deactivate User
 
 @enduml
+----
+
+=== Authentication Request with presentation definition
+
+In order to allow for on-device and cross-device scenarios, the login-page of the Web Service presents both - a QR code (cross-device) and an app link / universal link (on device).
+
+Note A: see https://identity.foundation/didcomm-messaging/spec/#out-of-band-messages
+for a format specification of an oob_message
+
+example with an attached auth request
+[source,json]
+----
+{
+  "type": "https://didcomm.org/out-of-band/2.0/invitation",
+  "id": "invitation message Id",
+  "from":"<sender's did>",
+  "body": {
+    "goal_code": "create-account",
+    "goal": "Register with Nextcloud",
+    "accept": [
+      "application/didcomm-plain+json"
+    ],
+  },
+  "attachments": [
+    {
+        "id": "request-0",
+        "mime_type": "application/json",
+        "data": {
+            "json": "<json of auth request ??? URL-to-> JSON Object>"
+        }
+    }
+  ]
+}
+----
+
+
+
+
+The following authentication request requests selected claims from the citizenship credential according to https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-verifier-initiated-cross-de
+
+The holder is defined by the id of credentialSubject.
+The holder must prove the control of the private key belonging to the holder did when presenting the proof to the verifier.
+
+[source,json]
+----
+{
+  "presentation_definition": {
+    "format": {
+      "ldp_vc": {
+        "proof_type": [
+          "Ed25519Signature2018",
+          "BbsBlsSignature2020"
+        ]
+      },
+      "jwt_vp": {
+        "alg": [
+          "EdDSA"
+        ]
+      }
+    },
+    "input_descriptors": [
+      {
+        "schema": [
+          {
+            "uri": "https://www.w3.org/2018/credentials#VerifiableCredential"
+          },
+          {
+            "uri": "https://w3id.org/citizenship#PermanentResidentCard",
+            "required": true
+          }
+        ],
+        "name": "Permanent Resident Card",
+        "id": "citizenship",
+        "constraints": {
+          "limit_disclosure": "required",
+          "fields": [
+            {
+              "path": [
+                "$.credentialSubject.id"
+              ],
+              "id": "ea9da655-3c0c-4015-99b0-3108d24675ba"
+            },
+            {
+              "path": [
+                "$.credentialSubject.givenName"
+              ]
+            },
+            {
+              "path": [
+                "$.credentialSubject.familyName"
+              ]
+            },
+            {
+              "path": [
+                "$.credentialSubject.birthDate"
+              ]
+            }
+          ],
+          "is_holder": [
+            {
+              "field_id": [
+                "ea9da655-3c0c-4015-99b0-3108d24675ba"
+              ],
+              "directive": "required"
+            }
+          ]
+        }
+      }
+    ],
+    "id": "6728ee4f-ba17-4a02-8989-ed48eb51d73f"
+  },
+  "session": "66ff8c76-a77c-4658-b6ae-d6eb2581d318",
+  "nonce": "d4b95f1f-5d69-4349-87f4-c7551441954c"
+}
+----
+
+
+*References:*
+
+- https://developer.android.com/training/app-links/
+- https://developer.apple.com/ios/universal-links/
+
+*prior art:*
+
+- current implementation of the invitation message
+[source,json]
+----
+{
+	"@type": "https://didcomm.org/out-of-band/1.0/invitation",
+	"@id": "29e07673-7b15-4564-9f8c-b1f2a8e8b141",
+	"label": "Invitation to px-over-http",
+	"handshake_protocols": [
+		"https://example.org/px-over-http/0.1"
+	],
+	"services": [
+		{
+			"id": "http://ncld.lab.gematik.de:3579/px-over-http",
+			"type": "px-over-http",
+			"serviceEndpoint": "http://ncld.lab.gematik.de:3579/px-over-http"
+		}
+	]
+}
 ----
