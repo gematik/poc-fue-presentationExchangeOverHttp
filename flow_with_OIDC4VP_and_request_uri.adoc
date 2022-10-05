@@ -64,16 +64,36 @@ Controller -> HolderAgent : receive-invitation
 activate HolderAgent
 HolderAgent -> HolderAgent : create conn record
 Controller <-- HolderAgent : 200 OK : conn record
-Controller -> HolderAgent : accept-invitation
+deactivate HolderAgent
+opt
+    User      <-  Controller  : accept invitation?
 
-== Holder creates Verifiable Presentation with W3C credentials ==
+    deactivate Controller
+    activate User
+    User      --> Controller  : OK
+    deactivate User
+    activate Controller
+    Controller -> HolderAgent : accept-invitation(connection_id)
+    activate HolderAgent
+end
 
+HolderAgent -> Verifier : invitation response(""request_uri"")
+activate Verifier
+
+== Verifier prepares Presentation Definition & triggers creation of Authentication Request ==
+
+Verifier -> Verifier : create/fetch\nPresentation Definition
+Verifier -> Verifier : create Auth Request
+
+== Holder receives Authentication Request and creates Verifiable Presentation with W3C credentials ==
+
+HolderAgent <-- Verifier    : 200 OK : Auth Request
+Verifier    ->> Webservice  : callback("auth request sent")
+deactivate Verifier
+HolderAgent  -> HolderAgent : update conn record
+Controller  <-- HolderAgent : 200 OK : conn record
 deactivate Controller
-HolderAgent  -> HolderAgent : handle invitation message
-HolderAgent  -> Verifier    : GET ""request_uri""
-note right                  : request confirmation by user?
-HolderAgent <-- Verifier    : request object (JWT)
-HolderAgent  -> HolderAgent : handle request object
+HolderAgent ->  HolderAgent : create pres ex record
 HolderAgent ->> Controller  : Event(pres ex record)
 deactivate HolderAgent
 activate Controller
