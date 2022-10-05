@@ -50,24 +50,28 @@ else #lavender cross-device - user scans qr code
     Controller  -> Browser    : Scans qr code : ""request_uri""
 end
 
+Controller -> Controller : transform request_uri to invitation (see Note C)
+
 opt
-    User <-  Controller : resolve ""request_uri""?
+    User <-  Controller : receive invitation?
     deactivate Controller
     User --> Controller : OK
     deactivate User
     activate Controller
 end
 
-Controller -> Verifier : resolve ""request_uri""
-activate Verifier
-Controller <-- Verifier : 200 OK : auth_request
+Controller -> HolderAgent : receive-invitation
+activate HolderAgent
+HolderAgent -> HolderAgent : create OOB record
+Controller <-- HolderAgent : 200 OK : OOB record
 
 == Holder creates Verifiable Presentation with W3C credentials ==
 
-
-Controller -> HolderAgent  : start OIDC4VP_auth (auth_request)
 deactivate Controller
-activate HolderAgent
+HolderAgent  -> HolderAgent : handle attachment
+HolderAgent  -> Verifier    : GET ""request_uri""
+note right                  : request confirmation by user?
+HolderAgent <-- Verifier    : request object (JWT)
 HolderAgent  -> HolderAgent : handle request object
 HolderAgent ->> Controller  : Event(pres ex record)
 deactivate HolderAgent
@@ -152,6 +156,23 @@ for a format specification of a deferred authentication request with request-uri
 https://ncld.lab.gematik.de?
     client_id=https%3A%2F%2Fncld.lab.gematik.de%2Fcb
     &request_uri=https%3A%2F%2Fncld.lab.gematik.de%2F567545564
+----
+
+Note C: invitation message after conversion from request_uri
+[source]
+----
+{"invitation_message": {
+   "handshake_protocols": ["TLS1.2"],
+   "@id": "ba80c9a4-a087-42f3-97df-2612b21ba446",
+   "label": "???",
+   "services": [{
+      "recipientKeys": ["did:key:z6MkjZXfLMVD3DiaRyMGqye1zKbTmQa49JKnAiWfoE4VXZtA"],
+      "id": "#inline",
+      "serviceEndpoint": "https://ncld.lab.gematik.de/567545564",
+      "type": "oidc4vp_auth_request"
+   }],
+   "@type": "did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/out-of-band/1.0/invitation"
+}}
 ----
 
 
