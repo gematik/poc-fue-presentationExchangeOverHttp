@@ -62,13 +62,14 @@ end
 
 Controller -> HolderAgent : receive-invitation
 activate HolderAgent
-HolderAgent -> HolderAgent : create OOB record
-Controller <-- HolderAgent : 200 OK : OOB record
+HolderAgent -> HolderAgent : create conn record
+Controller <-- HolderAgent : 200 OK : conn record
+Controller -> HolderAgent : accept-invitation
 
 == Holder creates Verifiable Presentation with W3C credentials ==
 
 deactivate Controller
-HolderAgent  -> HolderAgent : handle attachment
+HolderAgent  -> HolderAgent : handle invitation message
 HolderAgent  -> Verifier    : GET ""request_uri""
 note right                  : request confirmation by user?
 HolderAgent <-- Verifier    : request object (JWT)
