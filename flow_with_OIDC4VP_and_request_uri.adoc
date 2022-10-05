@@ -129,10 +129,20 @@ deactivate User
 
 === Authentication Request with presentation definition
 
+Note A:
+[source]
+----
+{
+"client_id": "https://ncld.lab.gematik.de/oidc4vp",
+"redirect_uris": ["https://ncld.lab.gematik.de/oidc4vp/post"],
+"response_types": "vp_token",
+"response_mode": "post"
+"presentation_definition": {...},
+"nonce": "n-0S6_WzA2Mj"
+}
+----
+
 In order to allow for on-device and cross-device scenarios, the login-page of the Web Service presents both - a QR code (cross-device) and an app link / universal link (on device).
-
-
-
 
 Note B: see https://openid.net/specs/openid-4-verifiable-presentations-1_0.html
 for a format specification of a deferred authentication request with request-uri
