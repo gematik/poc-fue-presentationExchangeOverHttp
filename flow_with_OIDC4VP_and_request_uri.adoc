@@ -184,7 +184,7 @@ https://ncld.lab.gematik.de?
 Note C: invitation message after conversion from request_uri
 [source]
 ----
-{"invitation_message": {
+{
    "@id": "ba80c9a4-a087-42f3-97df-2612b21ba446",
    "@type": "https://didcomm.org/out-of-band/1.0/invitation",
    "label": "Relying Party Verifier",
@@ -196,7 +196,7 @@ Note C: invitation message after conversion from request_uri
       "serviceEndpoint": "https://ncld.lab.gematik.de/567545564",
       "type": "oidc4vp_auth"
    }],
-}}
+}
 ----
 [NOTE]
 goal and goal code are defined by rfc0434 but not supported by acapy (yet)
