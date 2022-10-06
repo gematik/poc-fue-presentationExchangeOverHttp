@@ -90,7 +90,7 @@ end
 Controller -> HolderAgent : receive-invitation
 activate HolderAgent
 HolderAgent -> HolderAgent : create conn record
-Controller <-- HolderAgent : 200 OK : conn record
+Controller <-- HolderAgent : conn record
 
 opt
     User      <-  Controller  : accept invitation?
@@ -104,7 +104,7 @@ opt
     activate HolderAgent
 end
 
-HolderAgent -> Verifier : invitation response(invitation_msg_id)
+HolderAgent -> Verifier : POST {invitation_msg_id} see Note A
 activate Verifier
 
 == Verifier prepares Presentation Definition & triggers creation of Authentication Request ==
@@ -114,11 +114,11 @@ Verifier -> Verifier : create Auth Request
 
 == Holder receives Authentication Request and creates Verifiable Presentation with W3C credentials ==
 
-HolderAgent <-- Verifier    : 200 OK : Auth Request
+HolderAgent <-- Verifier    : 200 OK : Auth Request (see Note B)
 Verifier    ->> Webservice  : callback("auth request sent")
 deactivate Verifier
 HolderAgent  -> HolderAgent : update conn record
-Controller  <-- HolderAgent : 200 OK : conn record
+Controller  <-- HolderAgent : conn record
 deactivate Controller
 HolderAgent ->  HolderAgent : create pres ex record
 HolderAgent ->> Controller  : Event(pres ex record)
@@ -148,11 +148,11 @@ Controller -> Controller  : create presentationSpec
 Controller -> HolderAgent : send-presentation(presentationSpec)
 activate HolderAgent
 HolderAgent -> HolderAgent : create presentation
-HolderAgent ->  Verifier : JWT_VP
+HolderAgent ->  Verifier : POST presentation(JWT_VP) (see section jwt_vp)
 note right of Verifier : session information is conveyed via ""session"" parameter.
 activate Verifier
 HolderAgent <-- Verifier   : 200 OK
-Controller  <-- HolderAgent : 200 OK : pres ex record
+Controller  <-- HolderAgent : pres ex record
 deactivate HolderAgent
 deactivate Controller
 Verifier    ->> Webservice : callback("presentation received")
@@ -217,11 +217,20 @@ To construct the invitation URL, the invitation message is minified, Base64-enco
 https://webservice.com?oob=eyJAdHlwZSI6ICJodHRwczogLy9kaWRjb21tLm9yZy9vdXQtb2YtYmFuZC8xLjAvaW52aXRhdGlvbiIsICJAaWQiOiAiNzQyYTY3YzctYmE4My00OTE0LTkwZmYtZTQ5NzY4NWNmNGI4IiwgImxhYmVsIjogIlJlbHlpbmcgUGFydHkgVmVyaWZpZXIiLCAiZ29hbF9jb2RlIjogInJlcXVlc3QtcHJvb2YiLCAiZ29hbCI6ICJUbyByZXF1ZXN0IGEgY2l0aXplbnNoaXAgY3JlZGVudGlhbCBmb3IgaWRlbnRpdHkgcHJvdmluZyIsICJoYW5kc2hha2VfcHJvdG9jb2xzIjogWyJodHRwczovL2V4YW1wbGUub3JnL3B4LW92ZXItaHR0cC8wLjEiXSwgInNlcnZpY2VzIjogW3siaWQiOiAiaHR0cHM6Ly93ZWJzZXJ2aWNlLmNvbSIsICJ0eXBlIjogInB4LW92ZXItaHR0cCIsICJzZXJ2aWNlRW5kcG9pbnQiOiAiaHR0cHM6Ly93ZWJzZXJ2aWNlLmNvbS9weGgifV19
 ....
 
+.Note A: message body of the Http POST request (step 22)
+....
+{
+    "invitation_msg_id": "742a67c7-ba83-4914-90ff-e497685cf4b8"
+}
+....
+
 === Authentication Request with presentation definition
 
 The following authentication request requests selected claims from the citizenship credential.
 The holder is defined by the id of credentialSubject.
 The holder must prove the control of the private key belonging to the holder did when presenting the proof to the verifier.
+
+.Note B: message body with authentication request
 
 [source,json]
 ----
