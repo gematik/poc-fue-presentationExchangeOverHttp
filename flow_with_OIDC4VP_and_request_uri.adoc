@@ -194,7 +194,7 @@ Note C: invitation message after conversion from request_uri
    "services": [{
       "id": "https://ncld.lab.gematik.de",
       "serviceEndpoint": "https://ncld.lab.gematik.de/567545564",
-      "type": "oidc4vp_auth"
+      "type": "oidc_request_uri"
    }],
 }
 ----
