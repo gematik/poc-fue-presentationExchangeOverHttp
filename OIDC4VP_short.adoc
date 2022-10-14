@@ -1,0 +1,254 @@
+[plantuml]
+----
+@startuml
+'https://plantuml.com/sequence-diagram
+
+skinparam BoxPadding 10
+autonumber
+
+actor User
+participant Controller
+participant "Holder Agent" as HolderAgent
+participant Verifier
+
+
+== Holder receives minimal auth request w/ request_uri ==
+
+Verifier -> Controller : request_uri
+activate Controller
+Controller -> Controller : transform request_uri to invitation [see Note C]
+
+Controller -> HolderAgent : receive-invitation
+activate HolderAgent
+HolderAgent -> HolderAgent : create conn record
+Controller <-- HolderAgent : conn record
+
+opt without auto-accept
+    Controller -> User : accept invitation?
+    activate User
+    User --> Controller : OK
+    deactivate User
+    Controller -> HolderAgent : accept-invitation
+    deactivate Controller
+end
+
+HolderAgent -> Verifier : GET request_uri [see Note B]
+activate Verifier
+Verifier -> Verifier : create Auth Request
+
+== Holder receives Authentication Request and creates Verifiable Presentation with W3C credentials ==
+
+HolderAgent <-- Verifier    : 200 OK : Auth Request
+deactivate Verifier
+HolderAgent  -> HolderAgent : update conn record
+
+deactivate Controller
+HolderAgent ->  HolderAgent : create pres ex record
+HolderAgent ->> Controller  : Event(pres ex record)
+deactivate HolderAgent
+activate Controller
+User <-  Controller : send presentation?
+deactivate Controller
+activate User
+User --> Controller : OK
+deactivate User
+activate Controller
+Controller -> HolderAgent : fetch matching credentials
+activate HolderAgent
+Controller <-- HolderAgent : credentials
+deactivate HolderAgent
+
+opt
+    User <- Controller  : choose credentials
+    deactivate Controller
+    activate User
+    User --> Controller : credentials
+    deactivate User
+    activate Controller
+end
+
+Controller -> Controller  : create presentationSpec
+Controller -> HolderAgent : send-presentation(presentationSpec)
+activate HolderAgent
+HolderAgent -> HolderAgent : create vp_token, presentation_submission
+HolderAgent ->  Verifier : POST redirect_uri (vp_token, presentation_submission) [see Note D]
+note right of Verifier : session information is conveyed via ""session"" parameter.
+activate Verifier
+HolderAgent -> HolderAgent : update pres ex record
+Controller  <-- HolderAgent : pres ex record
+deactivate HolderAgent
+deactivate Controller
+
+== Verifier checks presentation ==
+
+Verifier  -> Verifier   : verify token
+
+deactivate Verifier
+deactivate Controller
+
+@enduml
+----
+
+=== Authentication Request with presentation definition
+
+Note A:
+[source]
+----
+{
+"client_id": "https://ncld.lab.gematik.de/oidc4vp",
+"redirect_uris": ["https://ncld.lab.gematik.de/oidc4vp/post"],
+"response_types": "vp_token",
+"response_mode": "post"
+"presentation_definition": {...},
+"nonce": "n-0S6_WzA2Mj"
+}
+----
+[NOTE]
+the non-normative authentication request example given in https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#section-7.2 lacks compliance with OIDC core 1.0, because the required parameter "scope" is missing.
+
+In order to allow for on-device and cross-device scenarios, the login-page of the Web Service presents both - a QR code (cross-device) and an app link / universal link (on device).
+
+Note B: see https://openid.net/specs/openid-4-verifiable-presentations-1_0.html
+for a format specification of a deferred authentication request with request-uri
+
+[source]
+----
+https://ncld.lab.gematik.de?
+    client_id=https%3A%2F%2Fncld.lab.gematik.de%2Fcb
+    &request_uri=https%3A%2F%2Fncld.lab.gematik.de%2F567545564
+----
+
+Note C: invitation message after conversion from request_uri
+[source]
+----
+{
+   "@id": "ba80c9a4-a087-42f3-97df-2612b21ba446",
+   "@type": "https://didcomm.org/out-of-band/1.0/invitation",
+   "label": "Relying Party Verifier",
+   "goal_code": "request-proof",
+   "goal": "To request a citizenship credential for identity proving",
+   "handshake_protocols": ["https://example.org/oidc4vp/0.1"],
+   "services": [{
+      "id": "https://ncld.lab.gematik.de",
+      "serviceEndpoint": "https://ncld.lab.gematik.de/567545564",
+      "type": "oidc_request_uri"
+   }],
+}
+----
+[NOTE]
+goal and goal code are defined by rfc0434 but not supported by acapy (yet)
+
+
+
+The following presentation_definition inside an authentication request (such as in Note A) requests selected claims from the citizenship credential according to https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-verifier-initiated-cross-de
+
+The holder is defined by the id of credentialSubject.
+The holder must prove the control of the private key belonging to the holder did when presenting the proof to the verifier.
+
+[source,json]
+----
+{
+  "presentation_definition": {
+    "format": {
+      "ldp_vc": {
+        "proof_type": [
+          "Ed25519Signature2018",
+          "BbsBlsSignature2020"
+        ]
+      },
+      "jwt_vp": {
+        "alg": [
+          "EdDSA"
+        ]
+      }
+    },
+    "input_descriptors": [
+      {
+        "schema": [
+          {
+            "uri": "https://www.w3.org/2018/credentials#VerifiableCredential"
+          },
+          {
+            "uri": "https://w3id.org/citizenship#PermanentResidentCard",
+            "required": true
+          }
+        ],
+        "name": "Permanent Resident Card",
+        "id": "citizenship",
+        "constraints": {
+          "limit_disclosure": "required",
+          "fields": [
+            {
+              "path": [
+                "$.credentialSubject.id"
+              ],
+              "id": "ea9da655-3c0c-4015-99b0-3108d24675ba"
+            },
+            {
+              "path": [
+                "$.credentialSubject.givenName"
+              ]
+            },
+            {
+              "path": [
+                "$.credentialSubject.familyName"
+              ]
+            },
+            {
+              "path": [
+                "$.credentialSubject.birthDate"
+              ]
+            }
+          ],
+          "is_holder": [
+            {
+              "field_id": [
+                "ea9da655-3c0c-4015-99b0-3108d24675ba"
+              ],
+              "directive": "required"
+            }
+          ]
+        }
+      }
+    ],
+    "id": "6728ee4f-ba17-4a02-8989-ed48eb51d73f"
+  }
+}
+----
+
+.Note D: POST presentation
+....
+POST /post HTTP/1.1
+    Host: client.example.org
+    Content-Type: application/x-www-form-urlencoded
+
+    presentation_submission=...&
+    vp_token=...
+....
+
+*References:*
+
+- https://developer.android.com/training/app-links/
+- https://developer.apple.com/ios/universal-links/
+
+*prior art:*
+
+- current implementation of the invitation message
+[source,json]
+----
+{
+	"@type": "https://didcomm.org/out-of-band/1.0/invitation",
+	"@id": "29e07673-7b15-4564-9f8c-b1f2a8e8b141",
+	"label": "Invitation to px-over-http",
+	"handshake_protocols": [
+		"https://example.org/px-over-http/0.1"
+	],
+	"services": [
+		{
+			"id": "http://ncld.lab.gematik.de:3579/px-over-http",
+			"type": "px-over-http",
+			"serviceEndpoint": "http://ncld.lab.gematik.de:3579/px-over-http"
+		}
+	]
+}
+----
