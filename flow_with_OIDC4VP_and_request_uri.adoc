@@ -65,9 +65,8 @@ activate HolderAgent
 HolderAgent -> HolderAgent : create conn record
 Controller <-- HolderAgent : conn record
 deactivate HolderAgent
-opt
+opt without auto-accept
     User      <-  Controller  : accept invitation?
-
     deactivate Controller
     activate User
     User      --> Controller  : OK
@@ -91,7 +90,9 @@ HolderAgent <-- Verifier    : 200 OK : Auth Request
 Verifier    ->> Webservice  : callback("auth request sent")
 deactivate Verifier
 HolderAgent  -> HolderAgent : update conn record
-Controller  <-- HolderAgent : conn record
+opt without auto-accept
+    Controller  <-- HolderAgent : conn record
+end
 deactivate Controller
 HolderAgent ->  HolderAgent : create pres ex record
 HolderAgent ->> Controller  : Event(pres ex record)
