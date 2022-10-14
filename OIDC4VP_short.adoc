@@ -9,12 +9,12 @@ autonumber
 actor User
 participant Controller
 participant "Holder Agent" as HolderAgent
-participant Verifier
+participant "OIDC\nRelying Party" as RP
 
 
 == Holder receives minimal auth request w/ request_uri ==
 
-Verifier -> Controller : request_uri
+RP -> Controller : request_uri
 activate Controller
 Controller -> Controller : transform request_uri to invitation [see Note C]
 
@@ -34,12 +34,12 @@ opt without auto-accept
     deactivate Controller
 end
 
-HolderAgent -> Verifier : GET request_uri [see Note B]
-activate Verifier
-Verifier -> Verifier : create request object
+HolderAgent -> RP : GET request_uri [see Note B]
+activate RP
+RP -> RP : create request object
 
-HolderAgent <-- Verifier    : 200 OK : request object
-deactivate Verifier
+HolderAgent <-- RP    : 200 OK : request object
+deactivate RP
 HolderAgent  -> HolderAgent : update conn record
 
 deactivate Controller
@@ -74,19 +74,19 @@ Controller -> Controller  : create presentationSpec
 Controller -> HolderAgent : send-presentation(presentationSpec)
 activate HolderAgent
 HolderAgent -> HolderAgent : create vp_token, presentation_submission
-HolderAgent ->  Verifier : POST redirect_uri (vp_token, presentation_submission) [see Note D]
+HolderAgent ->  RP : POST redirect_uri (vp_token, presentation_submission) [see Note D]
 note right : session information is conveyed via ""nonce"".
-activate Verifier
+activate RP
 HolderAgent -> HolderAgent : update pres ex record
 Controller  <-- HolderAgent : pres ex record
 deactivate HolderAgent
 deactivate Controller
 
-== Verifier checks presentation ==
+== RP verifies presentation ==
 
-Verifier  -> Verifier   : verify token
+RP  -> RP   : verify token
 
-deactivate Verifier
+deactivate RP
 deactivate Controller
 
 @enduml
