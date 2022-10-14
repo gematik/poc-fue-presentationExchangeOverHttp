@@ -72,7 +72,7 @@ Controller -> HolderAgent : send-presentation(presentationSpec)
 activate HolderAgent
 HolderAgent -> HolderAgent : create vp_token, presentation_submission
 HolderAgent ->  Verifier : POST redirect_uri (vp_token, presentation_submission) [see Note D]
-note right of Verifier : session information is conveyed via ""session"" parameter.
+note right of Verifier : session information is conveyed via ""nonce"".
 activate Verifier
 HolderAgent -> HolderAgent : update pres ex record
 Controller  <-- HolderAgent : pres ex record
