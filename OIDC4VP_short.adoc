@@ -23,6 +23,8 @@ activate HolderAgent
 HolderAgent -> HolderAgent : create conn record
 Controller <-- HolderAgent : conn record
 
+== Holder fetches request object ==
+
 opt without auto-accept
     Controller -> User : accept invitation?
     activate User
@@ -34,11 +36,9 @@ end
 
 HolderAgent -> Verifier : GET request_uri [see Note B]
 activate Verifier
-Verifier -> Verifier : create Auth Request
+Verifier -> Verifier : create request object
 
-== Holder receives Authentication Request and creates Verifiable Presentation with W3C credentials ==
-
-HolderAgent <-- Verifier    : 200 OK : Auth Request
+HolderAgent <-- Verifier    : 200 OK : request object
 deactivate Verifier
 HolderAgent  -> HolderAgent : update conn record
 
@@ -47,13 +47,16 @@ HolderAgent ->  HolderAgent : create pres ex record
 HolderAgent ->> Controller  : Event(pres ex record)
 deactivate HolderAgent
 activate Controller
+
+==  Holder creates Verifiable Presentation with W3C credentials ==
+
 User <-  Controller : send presentation?
 deactivate Controller
 activate User
 User --> Controller : OK
 deactivate User
 activate Controller
-Controller -> HolderAgent : fetch matching credentials
+Controller -> HolderAgent : get matching credentials
 activate HolderAgent
 Controller <-- HolderAgent : credentials
 deactivate HolderAgent
@@ -72,7 +75,7 @@ Controller -> HolderAgent : send-presentation(presentationSpec)
 activate HolderAgent
 HolderAgent -> HolderAgent : create vp_token, presentation_submission
 HolderAgent ->  Verifier : POST redirect_uri (vp_token, presentation_submission) [see Note D]
-note right of Verifier : session information is conveyed via ""nonce"".
+note right : session information is conveyed via ""nonce"".
 activate Verifier
 HolderAgent -> HolderAgent : update pres ex record
 Controller  <-- HolderAgent : pres ex record
