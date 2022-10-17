@@ -93,7 +93,7 @@ deactivate Controller
 
 @enduml
 ----
-
+[#note_a]
 === Note A
 .Auth Request
 [source]
@@ -152,7 +152,7 @@ goal and goal code are defined by https://github.com/hyperledger/aries-rfcs/tree
 
 
 
-The following presentation definition inside an authentication request (such as in <<_note_a>>) requests selected claims from the citizenship credential according to https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-verifier-initiated-cross-de
+The following presentation definition inside an authentication request (such as in <<note_a>>) requests selected claims from the citizenship credential according to https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-verifier-initiated-cross-de
 
 The holder is defined by the id of credentialSubject.
 The holder must prove the control of the private key belonging to the holder did when presenting the proof to the verifier.
