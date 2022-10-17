@@ -98,9 +98,9 @@ deactivate Controller
 .Auth Request
 [source]
 ----
-https://ncld.lab.gematik.de?
-    client_id=https%3A%2F%2Fncld.lab.gematik.de%2Fcb
-    &request_uri=https%3A%2F%2Fncld.lab.gematik.de%2F567545564
+https://wallet.example.org?
+    client_id=https%3A%2F%2Fclient.example.org%2Fcb
+    &request_uri=https%3A%2F%2Fclient.example.org%2F567545564
 ----
 See https://openid.net/specs/openid-4-verifiable-presentations-1_0.html
 for a format specification of a deferred authentication request with request-uri
@@ -113,8 +113,8 @@ the non-normative authentication request example given in https://openid.net/spe
 [source,json]
 ----
 {
-  "client_id": "https://ncld.lab.gematik.de/oidc4vp",
-  "redirect_uris": ["https://ncld.lab.gematik.de/oidc4vp/post"],
+  "client_id": "https://client.example.org/post",
+  "redirect_uris": ["https://client.example.org/post"],
   "response_type": "vp_token",
   "response_mode": "post",
   "presentation_definition": {...},
@@ -140,8 +140,8 @@ To allow for on-device and cross-device scenarios, the login page of the web ser
   ],
   "services": [
     {
-      "id": "https://ncld.lab.gematik.de",
-      "serviceEndpoint": "https://ncld.lab.gematik.de/567545564",  // request_uri
+      "id": "https://client.example.org",
+      "serviceEndpoint": "https://client.example.org/567545564",  // request_uri
       "type": "oidc_request_uri"  // custom type
     }
   ]
@@ -243,26 +243,3 @@ POST /post HTTP/1.1
 
 - https://developer.android.com/training/app-links/
 - https://developer.apple.com/ios/universal-links/
-
-*prior art:*
-
-- current implementation of the invitation message
-
-[source,json]
-----
-{
-  "@type": "https://didcomm.org/out-of-band/1.0/invitation",
-  "@id": "29e07673-7b15-4564-9f8c-b1f2a8e8b141",
-  "label": "Invitation to px-over-http",
-  "handshake_protocols": [
-    "https://example.org/px-over-http/0.1"
-  ],
-  "services": [
-    {
-      "id": "http://ncld.lab.gematik.de:3579/px-over-http",
-      "type": "px-over-http",
-      "serviceEndpoint": "http://ncld.lab.gematik.de:3579/px-over-http"
-    }
-  ]
-}
-----
