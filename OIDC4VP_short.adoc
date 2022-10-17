@@ -108,23 +108,10 @@ for a format specification of a deferred authentication request with request-uri
 [NOTE]
 the non-normative authentication request example given in https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#section-7.2 lacks compliance with OIDC core 1.0, because the required parameter "scope" is missing.
 
-=== Note B
-.Request Object
-[source,json]
-----
-{
-  "client_id": "https://client.example.org/post",
-  "redirect_uris": ["https://client.example.org/post"],
-  "response_type": "vp_token",
-  "response_mode": "post",
-  "presentation_definition": {...},
-  "nonce": "n-0S6_WzA2Mj"
-}
-----
 
 To allow for on-device and cross-device scenarios, the login page of the web service presents both a QR code (cross-device) and an app link / universal link (on-device).
 
-=== Note C
+=== Note B
 
 .Invitation Message After Conversion From request_uri
 [source,json]
@@ -150,13 +137,26 @@ To allow for on-device and cross-device scenarios, the login page of the web ser
 [NOTE]
 goal and goal code are defined by https://github.com/hyperledger/aries-rfcs/tree/main/features/0434-outofband[RFC 0434] but not supported by acapy (yet)
 
-
+=== Note C
+.Request Object
+[source,json]
+----
+{
+  "client_id": "https://client.example.org/post",
+  "redirect_uris": ["https://client.example.org/post"],
+  "response_type": "vp_token",
+  "response_mode": "post",
+  "presentation_definition": {...},
+  "nonce": "n-0S6_WzA2Mj"
+}
+----
 
 The following presentation definition inside an authentication request (such as in <<note_a>>) requests selected claims from the citizenship credential according to https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-verifier-initiated-cross-de
 
 The holder is defined by the id of credentialSubject.
 The holder must prove the control of the private key belonging to the holder did when presenting the proof to the verifier.
 
+.Presentation Definition
 [source,json]
 ----
 {
